@@ -11,32 +11,6 @@ import sys
 import json
 import os
 
-def uniprottopdb(uniprotid):
-    results = []
-    jsonfile = downloadsiftsmapping(uniprotid)
-    with open(jsonfile, 'r') as f:
-        buf = json.load(f)
-    pdbentries = buf[uniprotid]['PDB']
-    for pdbid in pdbentries:
-        for instance in buf[uniprotid]['PDB'][pdbid]:
-            match = {
-                'pdbid': pdbid,
-                'chain_id': instance['chain_id'],
-                'unp_start': instance['unp_start'],
-                'unp_end': instance['unp_end'],
-                'pdb_start': instance['start']['residue_number'],
-                'pdb_end': instance['end']['residue_number'],
-            }
-            results.append(match)
-    return results
-
-def downloadsiftsmapping(uniprotid, name=None):
-    if name == None:
-        name = f'{uniprotid}.json'
-    if not os.path.exists(name):
-        urllib.request.urlretrieve(f'https://www.ebi.ac.uk/pdbe/api/mappings/{uniprotid}', name)
-    return name
-
 def fetchpdbidresolution(pdbid):
     jsonfile = downloadpdbmetadata(pdbid)
     if os.path.exists(jsonfile):        
@@ -59,28 +33,15 @@ def downloadpdbmetadata(pdbid, name=None):
         urllib.request.urlretrieve(f'https://data.rcsb.org/rest/v1/core/entry/{pdbid}', name)
     return name
 
-def sortedPDBstructures(uniprotid):
-    jsonfile = downloadbeststructures(uniprotid)
-    if os.path.exists(jsonfile):
-        with open(jsonfile, "r") as f:
-            buf = json.load(f)
-            pdbentries = buf[uniprotid]
-            return pdbentries
-        
-def downloadbeststructures(uniprotid, name=None):
-    if name == None:
-        name = f'{uniprotid}.json'
-    if not os.path.exists(name):
-        urllib.request.urlretrieve(f'https://www.ebi.ac.uk/pdbe/api/mappings/best_structures/{uniprotid}', name)
-    return name
 
-if __name__ == '__main__':
-    upid = sys.argv[1]
-    pdbrecs = sortedPDBstructures(upid)
-    print (pdbrecs)
-#    for i in pdbrecs:
-#        print (i)
-#        reso = fetchpdbidresolution(i['pdbid'])
-#        print ('resolution:', reso)
+def downloadpage(baseurl, suffix, filename=None):
+    if name == None:
+        name = f'{suffix}.json'
+    if not os.path.exists(name):
+        urllib.request.urlretrieve(f'{baseurl}/{suffix}', name)
+    return name
+    
+
+
         
     
