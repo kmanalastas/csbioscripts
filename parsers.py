@@ -1,6 +1,6 @@
 # This file is part of the csbioscripts package
 #
-# Copyright (c) 2023 - Topf Lab, Leibniz-Institut für Virologie
+# Copyright (c) 2024 - Topf Lab, Leibniz-Institut für Virologie
 # Hamburg, Germany.
 #
 # This module was developed by:

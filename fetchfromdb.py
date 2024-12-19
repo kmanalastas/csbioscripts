@@ -1,6 +1,6 @@
 # This file is part of the csbioscripts package
 #
-# Copyright (c) 2023 - Topf Lab, Leibniz-Institut für Virologie
+# Copyright (c) 2024 - Topf Lab, Leibniz-Institut für Virologie
 # Hamburg, Germany.
 #
 # This module was developed by:
@@ -18,7 +18,6 @@ def uniprottopdb(uniprotid):
     pdbentries = buf[uniprotid]['PDB']
     for pdbid in pdbentries:
         for instance in buf[uniprotid]['PDB'][pdbid]:
-            #print (pdbid, instance['chain_id'], instance['unp_start'], instance['unp_end'], instance['start']['residue_number'], instance['end']['residue_number'])
             match = {
                 'pdbid': pdbid,
                 'chain_id': instance['chain_id'],
