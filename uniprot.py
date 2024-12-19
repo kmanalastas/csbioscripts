@@ -6,11 +6,13 @@
 # This module was developed by:
 #   Karen Manalastas-Cantos    <karen.manalastas-cantos AT cssb-hamburg.de>
 
+import os
+import json
 from fetchfromdb import downloadpage
 
 class Uniprot:
-	def __init__(self, upid):
-		self.id = upid
+    def __init__(self, upid):
+        self.id = upid
         self.pdbentries = None
         
     def sortedPDBstructures(self):
@@ -18,7 +20,7 @@ class Uniprot:
         if os.path.exists(jsonfile):
             with open(jsonfile, "r") as f:
                 buf = json.load(f)
-                pdbentries = buf[uniprotid]
+                pdbentries = buf[self.id]
                 self.pdbentries = pdbentries
                 
         

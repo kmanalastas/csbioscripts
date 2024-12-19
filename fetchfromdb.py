@@ -35,11 +35,11 @@ def downloadpdbmetadata(pdbid, name=None):
 
 
 def downloadpage(baseurl, suffix, filename=None):
-    if name == None:
-        name = f'{suffix}.json'
-    if not os.path.exists(name):
-        urllib.request.urlretrieve(f'{baseurl}/{suffix}', name)
-    return name
+    if filename == None:
+        filename = f'{suffix}.json'
+    if not os.path.exists(filename):
+        urllib.request.urlretrieve(f'{baseurl}/{suffix}', filename)
+    return filename
     
 
 
