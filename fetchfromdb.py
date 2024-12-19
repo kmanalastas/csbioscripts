@@ -59,13 +59,28 @@ def downloadpdbmetadata(pdbid, name=None):
         urllib.request.urlretrieve(f'https://data.rcsb.org/rest/v1/core/entry/{pdbid}', name)
     return name
 
+def sortedPDBstructures(uniprotid):
+    jsonfile = downloadbeststructures(uniprotid)
+    if os.path.exists(jsonfile):
+        with open(jsonfile, "r") as f:
+            buf = json.load(f)
+            pdbentries = buf[uniprotid]
+            return pdbentries
+        
+def downloadbeststructures(uniprotid, name=None):
+    if name == None:
+        name = f'{uniprotid}.json'
+    if not os.path.exists(name):
+        urllib.request.urlretrieve(f'https://www.ebi.ac.uk/pdbe/api/mappings/best_structures/{uniprotid}', name)
+    return name
 
 if __name__ == '__main__':
     upid = sys.argv[1]
-    pdbrecs = uniprottopdb(upid)
-    for i in pdbrecs:
-        print (i)
-        reso = fetchpdbidresolution(i['pdbid'])
-        print ('resolution:', reso)
+    pdbrecs = sortedPDBstructures(upid)
+    print (pdbrecs)
+#    for i in pdbrecs:
+#        print (i)
+#        reso = fetchpdbidresolution(i['pdbid'])
+#        print ('resolution:', reso)
         
     
