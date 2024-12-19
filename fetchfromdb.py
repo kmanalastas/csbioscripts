@@ -9,6 +9,7 @@
 import urllib.request
 import sys
 import json
+import os
 
 def uniprottopdb(uniprotid):
     results = []
@@ -32,12 +33,40 @@ def uniprottopdb(uniprotid):
 def downloadsiftsmapping(uniprotid, name=None):
     if name == None:
         name = f'{uniprotid}.json'
-    urllib.request.urlretrieve(f'https://www.ebi.ac.uk/pdbe/api/mappings/{uniprotid}', name)
+    if not os.path.exists(name):
+        urllib.request.urlretrieve(f'https://www.ebi.ac.uk/pdbe/api/mappings/{uniprotid}', name)
     return name
+
+def fetchpdbidresolution(pdbid):
+    jsonfile = downloadpdbmetadata(pdbid)
+    if os.path.exists(jsonfile):        
+        with open(jsonfile, "r") as f:
+            buf = json.load(f)
+            if 'rcsb_entry_info' in buf:
+                if 'resolution_combined' in buf['rcsb_entry_info']: 
+                    cres = (buf['rcsb_entry_info']['resolution_combined'][0])
+                    if buf['rcsb_entry_info']['experimental_method'] == 'EM':
+                        cres += 0.5 # penalize EM resolution
+                    return cres
+            else:
+                return None
+    else:
+        return None
+
+def downloadpdbmetadata(pdbid, name=None):
+    if name == None:
+        name = f'{pdbid}.json'
+    if not os.path.exists(name):
+        urllib.request.urlretrieve(f'https://data.rcsb.org/rest/v1/core/entry/{pdbid}', name)
+    return name
+
 
 if __name__ == '__main__':
     upid = sys.argv[1]
     pdbrecs = uniprottopdb(upid)
     for i in pdbrecs:
         print (i)
+        reso = fetchpdbidresolution(i['pdbid'])
+        print ('resolution:', reso)
+        
     
