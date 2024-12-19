@@ -8,9 +8,27 @@
 
 import urllib.request
 import sys
+import json
 
 def uniprottopdb(uniprotid):
-    jsonfile = downloadsiftsmapping(uniprotid)	
+    results = []
+    jsonfile = downloadsiftsmapping(uniprotid)
+    with open(jsonfile, 'r') as f:
+        buf = json.load(f)
+    pdbentries = buf[uniprotid]['PDB']
+    for pdbid in pdbentries:
+        for instance in buf[uniprotid]['PDB'][pdbid]:
+            #print (pdbid, instance['chain_id'], instance['unp_start'], instance['unp_end'], instance['start']['residue_number'], instance['end']['residue_number'])
+            match = {
+                'pdbid': pdbid,
+                'chain_id': instance['chain_id'],
+                'unp_start': instance['unp_start'],
+                'unp_end': instance['unp_end'],
+                'pdb_start': instance['start']['residue_number'],
+                'pdb_end': instance['end']['residue_number'],
+            }
+            results.append(match)
+    return results
 
 def downloadsiftsmapping(uniprotid, name=None):
     if name == None:
@@ -20,5 +38,7 @@ def downloadsiftsmapping(uniprotid, name=None):
 
 if __name__ == '__main__':
     upid = sys.argv[1]
-    uniprottopdb(upid)
+    pdbrecs = uniprottopdb(upid)
+    for i in pdbrecs:
+        print (i)
     
