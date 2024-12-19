@@ -6,6 +6,8 @@
 # This module was developed by:
 #   Karen Manalastas-Cantos    <karen.manalastas-cantos AT cssb-hamburg.de>
 
+import json
+
 def findfieldinjson(infile, field):
     with open(infile, "r") as f:
         buf = json.load(f)
