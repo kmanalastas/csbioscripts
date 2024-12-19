@@ -9,6 +9,7 @@
 import os
 import json
 from fetchfromdb import downloadpage
+import Bio.PDB as bpdb
 
 class PDBentry:
     def __init__(self, pdbid):
@@ -16,6 +17,7 @@ class PDBentry:
         self.resolution = None
         self.expmethod = None
         self.filepath = None
+        self.biopystruct = None
         
     def fetchpdbidresolution(self):
         jsonfile = downloadpage('https://data.rcsb.org/rest/v1/core/entry', self.id)
@@ -28,5 +30,16 @@ class PDBentry:
                         expmethod = buf['rcsb_entry_info']['experimental_method']
                         self.resolution, self.expmethod = cres, expmethod
     
-    
-
+    def fetchbiopythonstructure(self):
+        outname = f'{self.id}.cif'
+        pdbfile = downloadpage('https://files.rcsb.org/download', outname, filename=outname)        
+        if os.path.exists(pdbfile):
+            parser = bpdb.MMCIFParser(QUIET=True)
+            struct = parser.get_structure(self.id, pdbfile)
+            self.biopystruct = struct
+            
+    def downloadpdbfile(self):
+        pdbfile = self.id+'.cif'
+        if not os.path.exists(pdbfile):
+            pdbl = bpdb.PDBList()
+            mainpdb = pdbl.retrieve_pdb_file(self.id, pdir=os.getcwd(), overwrite=False)
