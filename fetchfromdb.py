@@ -45,9 +45,8 @@ def fetchpdbidresolution(pdbid):
             if 'rcsb_entry_info' in buf:
                 if 'resolution_combined' in buf['rcsb_entry_info']: 
                     cres = (buf['rcsb_entry_info']['resolution_combined'][0])
-                    if buf['rcsb_entry_info']['experimental_method'] == 'EM':
-                        cres += 0.5 # penalize EM resolution
-                    return cres
+                    expmethod = buf['rcsb_entry_info']['experimental_method']
+                    return cres, expmethod
             else:
                 return None
     else:
