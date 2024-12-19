@@ -38,8 +38,3 @@ class PDBentry:
             struct = parser.get_structure(self.id, pdbfile)
             self.biopystruct = struct
             
-    def downloadpdbfile(self):
-        pdbfile = self.id+'.cif'
-        if not os.path.exists(pdbfile):
-            pdbl = bpdb.PDBList()
-            mainpdb = pdbl.retrieve_pdb_file(self.id, pdir=os.getcwd(), overwrite=False)
