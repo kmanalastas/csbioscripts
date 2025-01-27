@@ -8,6 +8,7 @@
 
 import os
 import json
+import subprocess
 from fetchfromdb import downloadpage
 import Bio.PDB as bpdb
 
@@ -37,4 +38,20 @@ class PDBentry:
             parser = bpdb.MMCIFParser(QUIET=True)
             struct = parser.get_structure(self.id, pdbfile)
             self.biopystruct = struct
+
+def foldseekquery(pdbfile, db, exhaustive=False, alignment=2, cov=0.7, covmode=0):
+    fsout = f'{os.path.splitext(pdbfile)[0]}.m8'
+        
+    # run foldseek on chain.pdb using 3did db
+    if exhaustive:
+        result = subprocess.run(['foldseek', 'easy-search', pdbfile, db, fsout, 'tmp', '--exhaustive-search', '--alignment-type', str(alignment), '-c', str(cov), '--cov-mode', str(covmode), '--format-output','query,target,fident,qstart,qend,qlen,alnlen,evalue,lddt,prob,alntmscore', '--format-mode', '4'])
+    else:
+        result = subprocess.run(['foldseek', 'easy-search', pdbfile, db, fsout, 'tmp', '--alignment-type', str(alignment), '-c', str(cov), '--cov-mode', str(covmode), '--format-output','query,target,fident,qstart,qend,qlen,alnlen,evalue,lddt,prob,alntmscore', '--format-mode', '4'])
+
+    if result.returncode != 0:
+        print (f'Error: Foldseek failed. Check Foldseek installation, or if database {db} exists')
+        return None
+    else:
+        return fsout
+
             
