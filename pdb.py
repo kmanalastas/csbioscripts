@@ -39,6 +39,22 @@ class PDBentry:
             parser = bpdb.MMCIFParser(QUIET=True)
             struct = parser.get_structure(self.id, pdbfile)
             self.biopystruct = struct
+    
+    def printchainaspdb(self, chainid):
+        if self.biopystruct == None:
+            self.fetchbiopythonstructure()
+        struct = bpdb.Structure.Structure(0)
+        model = bpdb.Model.Model(0)
+        model.add(self.biopystruct[0][chainid])
+        struct.add(model)
+        outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.pdb'
+        printpdb(struct, outpdb)
+
+def printpdb(struct, path):
+    io = bpdb.PDBIO()
+    io.set_structure(struct)
+    io.save(path)
+    
 
 def foldseekquery(pdbfile, db, exhaustive=False, alignment=2, cov=0.7, covmode=0):
     fsout = f'{os.path.splitext(pdbfile)[0]}.m8'
