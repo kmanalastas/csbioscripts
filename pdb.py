@@ -35,6 +35,7 @@ class PDBentry:
         outname = f'{self.id}.cif'
         pdbfile = downloadpage('https://files.rcsb.org/download', outname, filename=outname)        
         if os.path.exists(pdbfile):
+            self.filepath = pdbfile
             parser = bpdb.MMCIFParser(QUIET=True)
             struct = parser.get_structure(self.id, pdbfile)
             self.biopystruct = struct
@@ -43,16 +44,20 @@ def foldseekquery(pdbfile, db, exhaustive=False, alignment=2, cov=0.7, covmode=0
     fsout = f'{os.path.splitext(pdbfile)[0]}.m8'
         
     # run foldseek on chain.pdb using 3did db
-    if exhaustive:
-        result = subprocess.run(['foldseek', 'easy-search', pdbfile, db, fsout, 'tmp', '--exhaustive-search', '--alignment-type', str(alignment), '-c', str(cov), '--cov-mode', str(covmode), '--format-output','query,target,fident,qstart,qend,qlen,alnlen,evalue,lddt,prob,alntmscore', '--format-mode', '4'])
-    else:
-        result = subprocess.run(['foldseek', 'easy-search', pdbfile, db, fsout, 'tmp', '--alignment-type', str(alignment), '-c', str(cov), '--cov-mode', str(covmode), '--format-output','query,target,fident,qstart,qend,qlen,alnlen,evalue,lddt,prob,alntmscore', '--format-mode', '4'])
+    if not os.path.exists(fsout):
+        if exhaustive:
+            result = subprocess.run(['foldseek', 'easy-search', pdbfile, db, fsout, 'tmp', '--exhaustive-search', '--alignment-type', str(alignment), '-c', str(cov), '--cov-mode', str(covmode), '--format-output','query,target,fident,qstart,qend,qlen,alnlen,evalue,lddt,prob,alntmscore', '--format-mode', '4'])
+        else:
+            result = subprocess.run(['foldseek', 'easy-search', pdbfile, db, fsout, 'tmp', '--alignment-type', str(alignment), '-c', str(cov), '--cov-mode', str(covmode), '--format-output','query,target,fident,qstart,qend,qlen,alnlen,evalue,lddt,prob,alntmscore', '--format-mode', '4'])
 
-    if result.returncode != 0:
-        print (f'Error: Foldseek failed. Check Foldseek installation, or if database {db} exists')
-        return None
+        if result.returncode != 0:
+            print (f'Error: Foldseek failed. Check Foldseek installation, or if database {db} exists')
+            return None
+        else:
+            print (f'Foldseek output file: {fsout}')
+            mapping = parsefoldseekresults(fsout)
+            return mapping
     else:
-        print (f'Foldseek output file: {fsout}')
         mapping = parsefoldseekresults(fsout)
         return mapping
 
@@ -79,5 +84,16 @@ def parsefoldseekresults(fsout):
                 mapping.append(match)
     return mapping            
 
+def interactingdomains(pdb1, pdb2, db, mintm=0):
+    doms1 = foldseekquery(pdb1, db, exhaustive=True, alignment=2, cov=0.7, covmode=1)
+    doms2 = foldseekquery(pdb2, db, exhaustive=True, alignment=2, cov=0.7, covmode=1)
+    for i in doms1:
+        if i['tmscore'] >= mintm:
+            matches = [j for j in doms2 if j['ddiid'] == i['ddiid'] and j['subunitnum'] != i['subunitnum'] and j['tmscore']>=mintm]
+            if len(matches) > 0:
+                for j in matches:
+                    print (f"interaction found: {i['ddiid']} {i['subunitnum']} {i['start']} {i['end']} {i['tmscore']} {i['ddiid']} {j['subunitnum']} {j['start']} {j['end']} {j['tmscore']}")
+    
+    
 
             
