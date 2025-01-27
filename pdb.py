@@ -52,6 +52,32 @@ def foldseekquery(pdbfile, db, exhaustive=False, alignment=2, cov=0.7, covmode=0
         print (f'Error: Foldseek failed. Check Foldseek installation, or if database {db} exists')
         return None
     else:
-        return fsout
+        print (f'Foldseek output file: {fsout}')
+        mapping = parsefoldseekresults(fsout)
+        return mapping
+
+def parsefoldseekresults(fsout):
+    mapping = []
+    with open(fsout, 'r') as f:
+        for line in f:
+            query,target,fident,qstart,qend,qlen,alnlen,evalue,lddt,prob,alntmscore = line.split('\t')
+                
+            # record foldseek match
+            if query != 'query':
+                ddinum = int(target.split('_')[0])
+                subnum = int(os.path.splitext(target.split('_')[1])[0])
+                match = {'ddiid': ddinum,
+                        'subunitnum': subnum,
+                        'start': int(qstart),
+                        'end': int(qend),
+                        'evalue': float(evalue),
+                        'lddt': float(lddt),
+                        'fident': float(fident),
+                        'tmscore': float(alntmscore),
+                        'prob': float(prob)
+                        }
+                mapping.append(match)
+    return mapping            
+
 
             
