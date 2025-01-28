@@ -101,6 +101,9 @@ def parsefoldseekresults(fsout):
     return mapping            
 
 def interactingdomains(pdb1, pdb2, db, mintm=0):
+    allmatches = []
+    name1 = os.path.splitext(os.path.basename(pdb1))[0]
+    name2 = os.path.splitext(os.path.basename(pdb2))[0]
     doms1 = foldseekquery(pdb1, db, exhaustive=True, alignment=2, cov=0.7, covmode=1)
     doms2 = foldseekquery(pdb2, db, exhaustive=True, alignment=2, cov=0.7, covmode=1)
     for i in doms1:
@@ -108,7 +111,21 @@ def interactingdomains(pdb1, pdb2, db, mintm=0):
             matches = [j for j in doms2 if j['ddiid'] == i['ddiid'] and j['subunitnum'] != i['subunitnum'] and j['tmscore']>=mintm]
             if len(matches) > 0:
                 for j in matches:
-                    print (f"interaction found: {i['ddiid']} {i['subunitnum']} {i['start']} {i['end']} {i['tmscore']} {i['ddiid']} {j['subunitnum']} {j['start']} {j['end']} {j['tmscore']}")
+                    ixn = {'protein1': name1,
+                            'ddiid1': i['ddiid'],
+                            'subunitnum1': i['subunitnum'],
+                            'p1start': i['start'],
+                            'p1end': i['end'],
+                            'p1tmscore': i['tmscore'],
+                            'protein2': name2,
+                            'ddiid2': i['ddiid'],
+                            'subunitnum2': j['subunitnum'],
+                            'p2start': j['start'],
+                            'p2end': j['end'],
+                            'p2tmscore': j['tmscore']
+                            }
+                    allmatches.append(ixn)
+    return allmatches
     
     
 
