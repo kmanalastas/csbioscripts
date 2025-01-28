@@ -7,6 +7,7 @@
 #   Karen Manalastas-Cantos    <karen.manalastas-cantos AT cssb-hamburg.de>
 
 import json
+import csv
 
 def findfieldinjson(infile, field):
     with open(infile, "r") as f:
@@ -20,3 +21,11 @@ def recursivesearch(level, field):
     else:
         for i in level:
             return recursivesearch(i, field)
+
+def printcsv(listofdicts, outfile='out.csv'):
+    fieldnames = listofdicts[0].keys()
+    with open(outfile, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(listofdicts)
+    
