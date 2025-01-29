@@ -44,9 +44,10 @@ class PDBentry:
         if self.biopystruct == None:
             self.fetchbiopythonstructure()
         struct = bpdb.Structure.Structure(0)
-        model = bpdb.Model.Model(0)
-        model.add(self.biopystruct[0][chainid])
-        struct.add(model)
+        for inmodel in self.biopystruct:
+            model = bpdb.Model.Model(inmodel.id)
+            model.add(self.biopystruct[inmodel.id][chainid])
+            struct.add(model)
         outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.pdb'
         printpdb(struct, outpdb)
 
