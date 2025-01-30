@@ -36,23 +36,36 @@ class PDBentry:
         outname = f'{self.id}.cif'
         if not os.path.exists(outname):
             pdbfile = downloadpage('https://files.rcsb.org/download', outname, filename=outname)        
-        if os.path.exists(pdbfile):
-            self.filepath = pdbfile
+        if os.path.exists(outname):
+            self.filepath = outname
             parser = bpdb.MMCIFParser(QUIET=True)
-            struct = parser.get_structure(self.id, pdbfile)
+            struct = parser.get_structure(self.id, outname)
             self.biopystruct = struct
     
-    def printchainaspdb(self, chainid):
+    def printchainaspdb(self, chainid, separate=False):
         if self.biopystruct == None:
             self.fetchbiopythonstructure()
-        struct = bpdb.Structure.Structure(0)
-        for inmodel in self.biopystruct:
-            model = bpdb.Model.Model(inmodel.id)
-            model.add(self.biopystruct[inmodel.id][chainid])
-            struct.add(model)
-        outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.pdb'
-        printpdb(struct, outpdb)
-        return outpdb
+            
+        outpdblist = []
+        if separate:
+            for inmodel in self.biopystruct:
+                struct = bpdb.Structure.Structure(0)
+                model = bpdb.Model.Model(0)
+                model.add(self.biopystruct[inmodel.id][chainid])
+                struct.add(model)
+                outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}_{str(inmodel.id)}.pdb'
+                printpdb(struct, outpdb)
+                outpdblist.append(outpdb)
+        else:
+            struct = bpdb.Structure.Structure(0)
+            for inmodel in self.biopystruct:
+                model = bpdb.Model.Model(inmodel.id)
+                model.add(self.biopystruct[inmodel.id][chainid])
+                struct.add(model)
+            outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.pdb'
+            printpdb(struct, outpdb)
+            outpdblist.append(outpdb)
+        return outpdblist
 
 def printpdb(struct, path):
     io = bpdb.PDBIO()
