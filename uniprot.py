@@ -9,12 +9,16 @@
 import os
 import json
 from fetchfromdb import downloadpage
+from pdb import PDBentry, tmscorewrapper
+from misc import lazycluster
+import operator
 
 class Uniprot:
     def __init__(self, upid):
         self.id = upid
         self.pdbentries = None
         self.nrchains = None
+        self.conformations = None
         
     def sortedPDBstructures(self):
         jsonfile = downloadpage('https://www.ebi.ac.uk/pdbe/api/mappings/best_structures', self.id)
@@ -66,6 +70,31 @@ class Uniprot:
                 if extralen < 0.5*(e2-s2):
                     overlap = True
         return overlap
+
+    def getalternateconformations(self):
+        if self.conformations != None:
+            return self.conformations
+        else:
+            if self.nrchains == None:
+                self.representativepdbchains()
+            self.conformations = []
+            for i in self.nrchains:
+                allpdbreps = [j for j in self.pdbentries if self.checkoverlap(i,j)]
+                chains = [] # paths to pdb files
+                for j in allpdbreps:
+                    print ('j', j)
+                    chains += self.getchains(j)
+                clustered = lazycluster(chains, tmscorewrapper, operator.ge, 0.5)
+                self.conformations.append(clustered)
+            return self.conformations
+    
+    def getchains(self, pdbrec):
+        chains = []
+        pdbent = PDBentry(pdbrec['pdb_id'])
+        pdbent.fetchbiopythonstructure()
+        chains += pdbent.printchainaspdb(pdbrec['chain_id'], separate=True)
+        return chains
+            
         
         
         
