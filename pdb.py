@@ -34,7 +34,8 @@ class PDBentry:
     
     def fetchbiopythonstructure(self):
         outname = f'{self.id}.cif'
-        pdbfile = downloadpage('https://files.rcsb.org/download', outname, filename=outname)        
+        if not os.path.exists(outname):
+            pdbfile = downloadpage('https://files.rcsb.org/download', outname, filename=outname)        
         if os.path.exists(pdbfile):
             self.filepath = pdbfile
             parser = bpdb.MMCIFParser(QUIET=True)
