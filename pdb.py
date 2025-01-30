@@ -12,6 +12,7 @@ import subprocess
 from fetchfromdb import downloadpage
 import Bio.PDB as bpdb
 
+
 class PDBentry:
     def __init__(self, pdbid):
         self.id = pdbid
@@ -50,6 +51,7 @@ class PDBentry:
             struct.add(model)
         outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.pdb'
         printpdb(struct, outpdb)
+        return outpdb
 
 def printpdb(struct, path):
     io = bpdb.PDBIO()
@@ -127,6 +129,29 @@ def interactingdomains(pdb1, pdb2, db, mintm=0):
                             }
                     allmatches.append(ixn)
     return allmatches
+    
+def tmscorewrapper(refpdb, modpdb):
+    tmpout = 'tmp_tmscore.txt'
+    tm, tm_scaled = None, None
+    with open(tmpout, 'w') as f:
+        result = subprocess.run(['/Users/kmcantos/Documents/installers/USalign', modpdb, refpdb], stdout=f)
+        if result.returncode == 0:
+            tm = parsetmscoreoutput(tmpout)
+        else:
+            print ('TM scoring failed')
+    subprocess.run(['rm', tmpout])
+    return tm
+
+def parsetmscoreoutput(tmout):
+    tm = []
+    with open(tmout, 'r') as f:
+        for line in f:
+            if line[0:8] == 'TM-score':
+                ln = line.split()
+                tm.append(float(ln[1]))
+    return max(tm)
+
+    
     
     
 
