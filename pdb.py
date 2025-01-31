@@ -9,7 +9,7 @@
 import os
 import json
 import subprocess
-from fetchfromdb import downloadpage
+from csbioscripts.fetchfromdb import downloadpage
 import Bio.PDB as bpdb
 
 

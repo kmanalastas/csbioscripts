@@ -8,9 +8,9 @@
 
 import os
 import json
-from fetchfromdb import downloadpage
-from pdb import PDBentry, tmscorewrapper
-from misc import lazycluster
+from csbioscripts.fetchfromdb import downloadpage
+from csbioscripts.pdb import PDBentry, tmscorewrapper
+from csbioscripts.misc import lazycluster
 import operator
 
 class Uniprot:
@@ -82,7 +82,7 @@ class Uniprot:
                 allpdbreps = [j for j in self.pdbentries if self.checkoverlap(i,j)]
                 chains = [] # paths to pdb files
                 for j in allpdbreps:
-                    print ('j', j)
+                    #print ('j', j)
                     chains += self.getchains(j)
                 clustered = lazycluster(chains, tmscorewrapper, operator.ge, 0.5)
                 self.conformations.append(clustered)
