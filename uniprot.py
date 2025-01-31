@@ -20,8 +20,8 @@ class Uniprot:
         self.nrchains = None
         self.conformations = None
         
-    def sortedPDBstructures(self):
-        jsonfile = downloadpage('https://www.ebi.ac.uk/pdbe/api/mappings/best_structures', self.id)
+    def sortedPDBstructures(self, directory=None):
+        jsonfile = downloadpage('https://www.ebi.ac.uk/pdbe/api/mappings/best_structures', self.id, directory=directory)
         if os.path.exists(jsonfile):
             with open(jsonfile, "r") as f:
                 buf = json.load(f)
@@ -31,12 +31,12 @@ class Uniprot:
                 else:
                     self.pdbentries = []
     
-    def representativepdbchains(self):
+    def representativepdbchains(self, directory=None):
         if self.nrchains != None:
             return self.nrchains
         else:
             if self.pdbentries == None:
-                self.sortedPDBstructures()
+                self.sortedPDBstructures(directory=directory)
             self.nrchains = []
             if len(self.pdbentries) > 0:
                 for i in self.pdbentries:
@@ -71,28 +71,28 @@ class Uniprot:
                     overlap = True
         return overlap
 
-    def getalternateconformations(self):
+    def getalternateconformations(self, directory=None):
         if self.conformations != None:
             return self.conformations
         else:
             if self.nrchains == None:
-                self.representativepdbchains()
+                self.representativepdbchains(directory=directory)
             self.conformations = []
             for i in self.nrchains:
                 allpdbreps = [j for j in self.pdbentries if self.checkoverlap(i,j)]
                 chains = [] # paths to pdb files
                 for j in allpdbreps:
                     #print ('j', j)
-                    chains += self.getchains(j)
+                    chains += self.getchains(j, directory=directory)
                 clustered = lazycluster(chains, tmscorewrapper, operator.ge, 0.5)
                 self.conformations.append(clustered)
             return self.conformations
     
-    def getchains(self, pdbrec):
+    def getchains(self, pdbrec, directory=None):
         chains = []
         pdbent = PDBentry(pdbrec['pdb_id'])
-        pdbent.fetchbiopythonstructure()
-        chains += pdbent.printchainaspdb(pdbrec['chain_id'], separate=True)
+        pdbent.fetchbiopythonstructure(directory=directory)
+        chains += pdbent.printchainaspdb(pdbrec['chain_id'], directory=directory, separate=True)
         return chains
             
         

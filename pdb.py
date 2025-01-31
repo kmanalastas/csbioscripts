@@ -21,8 +21,9 @@ class PDBentry:
         self.filepath = None
         self.biopystruct = None
         
-    def fetchpdbidresolution(self):
-        jsonfile = downloadpage('https://data.rcsb.org/rest/v1/core/entry', self.id)
+    def fetchpdbidresolution(self, directory=None):
+        jsonfile = downloadpage('https://data.rcsb.org/rest/v1/core/entry', self.id, directory=directory)
+            
         if os.path.exists(jsonfile):        
             with open(jsonfile, "r") as f:
                 buf = json.load(f)
@@ -32,17 +33,16 @@ class PDBentry:
                         expmethod = buf['rcsb_entry_info']['experimental_method']
                         self.resolution, self.expmethod = cres, expmethod
     
-    def fetchbiopythonstructure(self):
+    def fetchbiopythonstructure(self, directory=None):
         outname = f'{self.id}.cif'
-        if not os.path.exists(outname):
-            pdbfile = downloadpage('https://files.rcsb.org/download', outname, filename=outname)        
-        if os.path.exists(outname):
-            self.filepath = outname
+        pdbfile = downloadpage('https://files.rcsb.org/download', outname, directory=directory, filename=outname)        
+        if os.path.exists(pdbfile):
+            self.filepath = pdbfile
             parser = bpdb.MMCIFParser(QUIET=True)
-            struct = parser.get_structure(self.id, outname)
+            struct = parser.get_structure(self.id, pdbfile)
             self.biopystruct = struct
     
-    def printchainaspdb(self, chainid, separate=False):
+    def printchainaspdb(self, chainid, directory=None, separate=False):
         if self.biopystruct == None:
             self.fetchbiopythonstructure()
             
@@ -54,6 +54,8 @@ class PDBentry:
                 model.add(self.biopystruct[inmodel.id][chainid])
                 struct.add(model)
                 outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}_{str(inmodel.id)}.pdb'
+                if directory != None:
+                    outpdb = os.path.join(directory, outpdb)
                 printpdb(struct, outpdb)
                 outpdblist.append(outpdb)
         else:
@@ -62,6 +64,8 @@ class PDBentry:
                 model = bpdb.Model.Model(inmodel.id)
                 model.add(self.biopystruct[inmodel.id][chainid])
                 struct.add(model)
+            if directory != None:
+                outpdb = os.path.join(directory, outpdb)
             outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.pdb'
             printpdb(struct, outpdb)
             outpdblist.append(outpdb)
@@ -73,8 +77,10 @@ def printpdb(struct, path):
     io.save(path)
     
 
-def foldseekquery(pdbfile, db, exhaustive=False, alignment=2, cov=0.7, covmode=0):
+def foldseekquery(pdbfile, db, exhaustive=False, alignment=2, cov=0.7, covmode=0, directory=None):
     fsout = f'{os.path.splitext(pdbfile)[0]}.m8'
+    if directory != None:
+        fsout = os.path.join(directory, fsout)
         
     # run foldseek on chain.pdb using 3did db
     if not os.path.exists(fsout):

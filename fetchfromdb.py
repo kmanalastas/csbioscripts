@@ -10,9 +10,12 @@ import urllib.request
 import os
 
 
-def downloadpage(baseurl, suffix, filename=None):
+def downloadpage(baseurl, suffix, directory=None, filename=None):
     if filename == None:
         filename = f'{suffix}.json'
+    if directory != None:
+        filename = os.path.join(directory, filename)
+        
     if not os.path.exists(filename):
         try:
             response = urllib.request.urlopen(f'{baseurl}/{suffix}')
