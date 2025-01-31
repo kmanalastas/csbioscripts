@@ -14,7 +14,15 @@ def downloadpage(baseurl, suffix, filename=None):
     if filename == None:
         filename = f'{suffix}.json'
     if not os.path.exists(filename):
-        urllib.request.urlretrieve(f'{baseurl}/{suffix}', filename)
+        try:
+            response = urllib.request.urlopen(f'{baseurl}/{suffix}')
+            webContent = response.read().decode('UTF-8')
+            
+            with open(filename, 'w') as f:
+                f.write(webContent)
+        except:
+            print (f'No entries for {suffix}')
+        
     return filename
     
 
