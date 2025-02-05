@@ -70,6 +70,24 @@ class PDBentry:
             printpdb(struct, outpdb)
             outpdblist.append(outpdb)
         return outpdblist
+    
+    def chainscontainingligand(self, ligandname, directory=None):
+        outchains = []
+        if self.biopystruct == None:
+            self.fetchbiopythonstructure(directory=directory)
+        for model in self.biopystruct:
+            for chain in model:
+                found = False
+                for res in chain:
+                    if res.get_resname() == ligandname:
+                        found = True
+                        break
+                    if found:
+                        break
+                if found:
+                    outchains.append(chain.id)
+        return sorted(list(set(outchains)))
+                    
 
 def printpdb(struct, path):
     io = bpdb.PDBIO()
