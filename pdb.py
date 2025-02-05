@@ -87,7 +87,13 @@ class PDBentry:
                 if found:
                     outchains.append(chain.id)
         return sorted(list(set(outchains)))
-                    
+    
+    def chainlength(self, chainid, directory=None):
+        if self.biopystruct == None:
+            self.fetchbiopythonstructure(directory=directory)
+        residues = [i for i in self.biopystruct[0][chainid]]
+        return len(residues)
+
 
 def printpdb(struct, path):
     io = bpdb.PDBIO()
