@@ -85,7 +85,7 @@ class Uniprot:
                 for j in allpdbreps:
                     #print ('j', j)
                     chains += self.getchains(j, directory=directory)
-                clustered = lazycluster(chains, tmscorewrapper, operator.ge, 0.5)
+                clustered = lazycluster(chains, tmscorewrapper, operator.ge, 0.9)
                 self.conformations.append(clustered)
             return self.conformations
     
