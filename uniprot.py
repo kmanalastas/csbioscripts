@@ -19,6 +19,7 @@ class Uniprot:
         self.pdbentries = None
         self.nrchains = None
         self.conformations = None
+        self.sequence = None
         
     def sortedPDBstructures(self, directory=None):
         jsonfile = downloadpage('https://www.ebi.ac.uk/pdbe/api/mappings/best_structures', self.id, directory=directory)
@@ -94,7 +95,22 @@ class Uniprot:
         pdbent.fetchbiopythonstructure(directory=directory)
         chains += pdbent.printchainaspdb(pdbrec['chain_id'], directory=directory, separate=True)
         return chains
+    
+    def getsequence(self, directory=None):
+        if self.sequence != None:
+            return self.sequence
+        else:
+            seq = ''
+            fastafile = f'{self.id}.fasta'
+            fastafile = downloadpage('https://rest.uniprot.org/uniprotkb/', fastafile, directory=directory, filename=fastafile)
+            with open(fastafile, 'r') as f:
+                for line in f:
+                    if line[0] != '>':
+                        seq += line.strip()
+            self.sequence = seq
+            return self.sequence
             
+                
         
         
         
