@@ -42,7 +42,7 @@ class PDBentry:
             struct = parser.get_structure(self.id, pdbfile)
             self.biopystruct = struct
     
-    def printchainaspdb(self, chainid, directory=None, separate=False):
+    def printchainaspdb(self, chainid, directory=None, separate=False, suffix=None):
         if self.biopystruct == None:
             self.fetchbiopythonstructure()
             
@@ -54,6 +54,8 @@ class PDBentry:
                 model.add(self.biopystruct[inmodel.id][chainid])
                 struct.add(model)
                 outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}_{str(inmodel.id)}.pdb'
+                if suffix != None: 
+                    outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.pdb'
                 if directory != None:
                     outpdb = os.path.join(directory, outpdb)
                 printpdb(struct, outpdb)
@@ -67,6 +69,8 @@ class PDBentry:
             if directory != None:
                 outpdb = os.path.join(directory, outpdb)
             outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.pdb'
+            if suffix != None: 
+                outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.pdb'
             printpdb(struct, outpdb)
             outpdblist.append(outpdb)
         return outpdblist
