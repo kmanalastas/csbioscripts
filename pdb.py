@@ -106,6 +106,27 @@ class PDBentry:
                             dellocs = [i.altloc for i in atom.disordered_get_list() if i.altloc != 'A']
                             for i in dellocs:
                                 atom.disordered_remove(i)
+    
+    def removeheteroatoms(self, exceptions=[], directory=None):
+        if self.biopystruct == None:
+            self.fetchbiopythonstructure(directory=directory)
+        newstruc = bpdb.Structure.Structure(self.biopystruct.id)
+        for model in self.biopystruct:
+            newmod = bpdb.Model.Model(model.id)
+            for chain in model:
+                newch = bpdb.Chain.Chain(chain.id)
+                for res in chain:
+                    if 'W' not in res.id[0] and 'H' not in res.id[0]:
+                        newres = res.copy()
+                        newch.add(newres)
+                    elif 'H' in res.id[0]:
+                        tag, ligand = res.id[0].split('_')
+                        if ligand in exceptions:
+                            newres = res.copy()
+                            newch.add(newres)
+                newmod.add(newch)
+            newstruc.add(newmod)
+        return newstruc
 
 
 def printpdb(struct, path):
