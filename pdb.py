@@ -93,6 +93,19 @@ class PDBentry:
             self.fetchbiopythonstructure(directory=directory)
         residues = [i for i in self.biopystruct[0][chainid]]
         return len(residues)
+    
+    def removealtloc(self, directory=None):
+        if self.biopystruct == None:
+            self.fetchbiopythonstructure(directory=directory)
+        for model in self.biopystruct:
+            for chain in model:
+                for res in chain:
+                    for atom in res:
+                        altloc = atom.altloc.strip()
+                        if altloc != '':
+                            dellocs = [i.altloc for i in atom.disordered_get_list() if i.altloc != 'A']
+                            for i in dellocs:
+                                atom.disordered_remove(i)
 
 
 def printpdb(struct, path):
