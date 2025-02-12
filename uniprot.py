@@ -93,7 +93,7 @@ class Uniprot:
         chains = []
         pdbent = PDBentry(pdbrec['pdb_id'])
         pdbent.fetchbiopythonstructure(directory=directory)
-        chains += pdbent.printchainaspdb(pdbrec['chain_id'], directory=directory, separate=True)
+        chains += pdbent.printchainaspdb(pdbrec['chain_id'], separate=True)
         return chains
     
     def getsequence(self, directory=None):
