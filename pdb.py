@@ -42,23 +42,26 @@ class PDBentry:
             struct = parser.get_structure(self.id, pdbfile)
             self.biopystruct = struct
     
-    def printchainaspdb(self, chainid, directory=None, separate=False, suffix=None):
+    def printchainaspdb(self, chainid, directory=None, separate=False, suffix=None, ext='cif'):
         if self.biopystruct == None:
             self.fetchbiopythonstructure()
             
         outpdblist = []
         if separate:
             for inmodel in self.biopystruct:
-                struct = bpdb.Structure.Structure(0)
+                struct = bpdb.Structure.Structure(self.biopystruct.id)
                 model = bpdb.Model.Model(0)
                 model.add(self.biopystruct[inmodel.id][chainid])
                 struct.add(model)
-                outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}_{str(inmodel.id)}.pdb'
+                outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}_{str(inmodel.id)}.{ext}'
                 if suffix != None: 
-                    outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.pdb'
+                    outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.{ext}'
                 if directory != None:
                     outpdb = os.path.join(directory, outpdb)
-                printpdb(struct, outpdb)
+                if ext == 'pdb':
+                    printpdb(struct, outpdb)
+                else:
+                    printcif(struct, outpdb)
                 outpdblist.append(outpdb)
         else:
             struct = bpdb.Structure.Structure(0)
@@ -68,10 +71,13 @@ class PDBentry:
                 struct.add(model)
             if directory != None:
                 outpdb = os.path.join(directory, outpdb)
-            outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.pdb'
+            outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.{ext}'
             if suffix != None: 
-                outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.pdb'
-            printpdb(struct, outpdb)
+                outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.{ext}'
+            if ext == 'pdb':
+                printpdb(struct, outpdb)
+            else:
+                printcif(struct, outpdb)
             outpdblist.append(outpdb)
         return outpdblist
     
