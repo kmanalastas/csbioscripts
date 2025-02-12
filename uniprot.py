@@ -72,7 +72,7 @@ class Uniprot:
                     overlap = True
         return overlap
 
-    def getalternateconformations(self, directory=None):
+    def getalternateconformations(self, removealtloc=False, removehetatm=False, keepligands=[], directory=None):
         if self.conformations != None:
             return self.conformations
         else:
@@ -84,15 +84,19 @@ class Uniprot:
                 chains = [] # paths to pdb files
                 for j in allpdbreps:
                     #print ('j', j)
-                    chains += self.getchains(j, directory=directory)
+                    chains += self.getchains(j, removealtloc=removealtloc, removehetatm=removehetatm, keepligands=keepligands, directory=directory)
                 clustered = lazycluster(chains, tmscorewrapper, operator.ge, 0.9)
                 self.conformations.append(clustered)
             return self.conformations
     
-    def getchains(self, pdbrec, directory=None):
+    def getchains(self, pdbrec, removealtloc=False, removehetatm=False, keepligands=[], directory=None):
         chains = []
         pdbent = PDBentry(pdbrec['pdb_id'])
         pdbent.fetchbiopythonstructure(directory=directory)
+        if removealtloc:
+            pdbent.removealtloc
+        if removehetatm:
+            pdbent.biopystruct = pdbent.removeheteroatoms(exceptions=keepligands)
         chains += pdbent.printchainaspdb(pdbrec['chain_id'], separate=True)
         return chains
     
