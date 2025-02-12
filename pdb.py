@@ -138,6 +138,10 @@ def printpdb(struct, path):
     io.set_structure(struct)
     io.save(path)
     
+def printcif(struct, path):
+    io = bpdb.mmcifio.MMCIFIO()
+    io.set_structure(struct)
+    io.save(path)
 
 def foldseekquery(pdbfile, db, exhaustive=False, alignment=2, cov=0.7, covmode=0, directory=None):
     fsout = f'{os.path.splitext(pdbfile)[0]}.m8'
