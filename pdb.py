@@ -38,9 +38,13 @@ class PDBentry:
         pdbfile = downloadpage('https://files.rcsb.org/download', outname, directory=directory, filename=outname)        
         if os.path.exists(pdbfile):
             self.filepath = pdbfile
-            parser = bpdb.MMCIFParser(QUIET=True)
-            struct = parser.get_structure(self.id, pdbfile)
-            self.biopystruct = struct
+            if os.path.getsize(self.filepath) > 0:
+                try:
+                    parser = bpdb.MMCIFParser(QUIET=True)
+                    struct = parser.get_structure(self.id, pdbfile)
+                    self.biopystruct = struct
+                except:
+                    self.biopystruct = None
     
     def printchainaspdb(self, chainid, directory=None, separate=False, suffix=None, ext='cif'):
         if self.biopystruct == None:
@@ -195,7 +199,7 @@ def parsefoldseekresults(fsout):
                 mapping.append(match)
     return mapping            
 
-def interactingdomains(pdb1, pdb2, db, mintm=0):
+def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
     allmatches = []
     name1 = os.path.splitext(os.path.basename(pdb1))[0]
     name2 = os.path.splitext(os.path.basename(pdb2))[0]
@@ -206,27 +210,52 @@ def interactingdomains(pdb1, pdb2, db, mintm=0):
             matches = [j for j in doms2 if j['ddiid'] == i['ddiid'] and j['subunitnum'] != i['subunitnum'] and j['tmscore']>=mintm]
             if len(matches) > 0:
                 for j in matches:
+                    ddixn = ddis[ddis['id'] == i['ddiid']]
+                    pdbid = ddixn.iloc[0]['pdbid']
+                    if i['subunitnum'] == 0:
+                        pdbch1 = ddixn.iloc[0]['ch1']
+                        pdbs1 = ddixn.iloc[0]['s1'][0]
+                        pdbe1 = ddixn.iloc[0]['e1'][0]
+                        pdbch2 = ddixn.iloc[0]['ch2']
+                        pdbs2 = ddixn.iloc[0]['s2'][0]
+                        pdbe2 = ddixn.iloc[0]['e2'][0]
+                    else:
+                        pdbch1 = ddixn.iloc[0]['ch2']
+                        pdbs1 = ddixn.iloc[0]['s2'][0]
+                        pdbe1 = ddixn.iloc[0]['e2'][0]
+                        pdbch2 = ddixn.iloc[0]['ch1']
+                        pdbs2 = ddixn.iloc[0]['s1'][0]
+                        pdbe2 = ddixn.iloc[0]['e1'][0]
+                    
                     ixn = {'protein1': name1,
-                            'ddiid1': i['ddiid'],
-                            'subunitnum1': i['subunitnum'],
-                            'p1start': i['start'],
-                            'p1end': i['end'],
-                            'p1tmscore': i['tmscore'],
+                            'protein1_start': i['start'],
+                            'protein1_end': i['end'],
+                            'protein1_domainmatch': f'{pdbid}_{pdbch1}',
+                            'protein1_domainmatch_start': pdbs1,
+                            'protein1_domainmatch_end': pdbe1,
+                            'protein1_domainmatch_tmscore': i['tmscore'],
+
                             'protein2': name2,
-                            'ddiid2': i['ddiid'],
-                            'subunitnum2': j['subunitnum'],
-                            'p2start': j['start'],
-                            'p2end': j['end'],
-                            'p2tmscore': j['tmscore']
+                            'protein2_start': j['start'],
+                            'protein2_end': j['end'],
+                            'protein2_domainmatch': f'{pdbid}_{pdbch2}',
+                            'protein2_domainmatch_start': pdbs2,
+                            'protein2_domainmatch_end': pdbe2,
+                            'protein2_domainmatch_tmscore': j['tmscore']
                             }
+                        
                     allmatches.append(ixn)
     return allmatches
+
     
-def tmscorewrapper(refpdb, modpdb):
+def tmscorewrapper(refpdb, modpdb, fast=True):
     tmpout = 'tmp_tmscore.txt'
     tm, tm_scaled = None, None
     with open(tmpout, 'w') as f:
-        result = subprocess.run(['/Users/kmcantos/Documents/installers/USalign', modpdb, refpdb], stdout=f)
+        if fast:
+            result = subprocess.run(['/Users/kmcantos/Documents/installers/USalign', modpdb, refpdb, '-fast'], stdout=f)
+        else:
+            result = subprocess.run(['/Users/kmcantos/Documents/installers/USalign', modpdb, refpdb], stdout=f)
         if result.returncode == 0:
             tm = parsetmscoreoutput(tmpout)
         else:
