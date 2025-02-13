@@ -84,20 +84,24 @@ class Uniprot:
                 chains = [] # paths to pdb files
                 for j in allpdbreps:
                     #print ('j', j)
-                    chains += self.getchains(j, removealtloc=removealtloc, removehetatm=removehetatm, keepligands=keepligands, directory=directory)
-                clustered = lazycluster(chains, tmscorewrapper, operator.ge, 0.9)
-                self.conformations.append(clustered)
+                    add = self.getchains(j, removealtloc=removealtloc, removehetatm=removehetatm, keepligands=keepligands, directory=directory)
+                    if len(add) > 0:
+                        chains += add
+                if len(chains) > 0: 
+                    clustered = lazycluster(chains, tmscorewrapper, operator.ge, 0.9)
+                    self.conformations.append(clustered)
             return self.conformations
     
     def getchains(self, pdbrec, removealtloc=False, removehetatm=False, keepligands=[], directory=None):
         chains = []
         pdbent = PDBentry(pdbrec['pdb_id'])
         pdbent.fetchbiopythonstructure(directory=directory)
-        if removealtloc:
-            pdbent.removealtloc
-        if removehetatm:
-            pdbent.biopystruct = pdbent.removeheteroatoms(exceptions=keepligands)
-        chains += pdbent.printchainaspdb(pdbrec['chain_id'], separate=True)
+        if pdbent.biopystruct != None:
+            if removealtloc:
+                pdbent.removealtloc
+            if removehetatm:
+                pdbent.biopystruct = pdbent.removeheteroatoms(exceptions=keepligands)
+            chains += pdbent.printchainaspdb(pdbrec['chain_id'], separate=True)
         return chains
     
     def getsequence(self, directory=None):
