@@ -31,6 +31,8 @@ class Uniprot:
                     self.pdbentries = pdbentries
                 else:
                     self.pdbentries = []
+        else:
+            self.pdbentries = []
     
     def representativepdbchains(self, directory=None):
         if self.nrchains != None:
