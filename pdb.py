@@ -20,6 +20,7 @@ class PDBentry:
         self.expmethod = None
         self.filepath = None
         self.biopystruct = None
+        self.uniprotmappings = None
         
     def fetchpdbidresolution(self, directory=None):
         jsonfile = downloadpage('https://data.rcsb.org/rest/v1/core/entry', self.id, directory=directory)
@@ -46,6 +47,23 @@ class PDBentry:
                 except:
                     self.biopystruct = None
     
+    def fetchuniprotmappings(self, directory=None):
+        jsonfile = downloadpage('https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/', self.id, directory=directory)
+        if os.path.exists(jsonfile):
+            with open(jsonfile, "r") as f:
+                buf = json.load(f)
+                if self.id in buf:
+                    mappings = buf[self.id]
+                    self.uniprotmappings = mappings
+                else:
+                    self.uniprotmappings = []
+    
+#    def chainmapping(self, chainid):
+#        if self.uniprotmappings == None:
+#            self.fetchuniprotmappings()
+#        if self.uniprotmappings != []:
+             
+    
     def printchainaspdb(self, chainid, directory=None, separate=False, suffix=None, ext='cif'):
         if self.biopystruct == None:
             self.fetchbiopythonstructure()
@@ -53,36 +71,43 @@ class PDBentry:
         outpdblist = []
         if separate:
             for inmodel in self.biopystruct:
-                struct = bpdb.Structure.Structure(self.biopystruct.id)
-                model = bpdb.Model.Model(0)
-                model.add(self.biopystruct[inmodel.id][chainid])
-                struct.add(model)
-                outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}_{str(inmodel.id)}.{ext}'
-                if suffix != None: 
-                    outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.{ext}'
+                if not self.biopystruct[inmodel.id].__contains__(chainid):
+                    print (f'Chain {chainid} not found in {self.id} model {inmodel.id}')
+                else:
+                    struct = bpdb.Structure.Structure(self.biopystruct.id)
+                    model = bpdb.Model.Model(0)
+                    model.add(self.biopystruct[inmodel.id][chainid])
+                    struct.add(model)
+                    outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}_{str(inmodel.id)}.{ext}'
+                    if suffix != None: 
+                        outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.{ext}'
+                    if directory != None:
+                        outpdb = os.path.join(directory, outpdb)
+                    if ext == 'pdb':
+                        printpdb(struct, outpdb)
+                    else:
+                        printcif(struct, outpdb)
+                    outpdblist.append(outpdb)
+        else:
+            struct = bpdb.Structure.Structure(0)
+            chainfound = False
+            for inmodel in self.biopystruct:
+                model = bpdb.Model.Model(inmodel.id)
+                if self.biopystruct[inmodel.id].__contains__(chainid):
+                    model.add(self.biopystruct[inmodel.id][chainid])
+                    struct.add(model)
+                    chainfound = True
+            if chainfound:
                 if directory != None:
                     outpdb = os.path.join(directory, outpdb)
+                outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.{ext}'
+                if suffix != None: 
+                    outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.{ext}'
                 if ext == 'pdb':
                     printpdb(struct, outpdb)
                 else:
                     printcif(struct, outpdb)
                 outpdblist.append(outpdb)
-        else:
-            struct = bpdb.Structure.Structure(0)
-            for inmodel in self.biopystruct:
-                model = bpdb.Model.Model(inmodel.id)
-                model.add(self.biopystruct[inmodel.id][chainid])
-                struct.add(model)
-            if directory != None:
-                outpdb = os.path.join(directory, outpdb)
-            outpdb = os.path.splitext(self.filepath)[0] + f'_{chainid}.{ext}'
-            if suffix != None: 
-                outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.{ext}'
-            if ext == 'pdb':
-                printpdb(struct, outpdb)
-            else:
-                printcif(struct, outpdb)
-            outpdblist.append(outpdb)
         return outpdblist
     
     def chainscontainingligand(self, ligandname, directory=None):
@@ -247,6 +272,7 @@ def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
                     allmatches.append(ixn)
     return allmatches
 
+
     
 def tmscorewrapper(refpdb, modpdb, fast=True):
     tmpout = 'tmp_tmscore.txt'
@@ -265,12 +291,15 @@ def tmscorewrapper(refpdb, modpdb, fast=True):
 
 def parsetmscoreoutput(tmout):
     tm = []
-    with open(tmout, 'r') as f:
-        for line in f:
-            if line[0:8] == 'TM-score':
-                ln = line.split()
-                tm.append(float(ln[1]))
-    return max(tm)
+    try:
+        with open(tmout, 'r') as f:
+            for line in f:
+                if line[0:8] == 'TM-score':
+                    ln = line.split()
+                    tm.append(float(ln[1]))
+        return max(tm)
+    except:
+        return None
 
     
     

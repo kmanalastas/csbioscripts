@@ -10,16 +10,19 @@ def lazycluster(listofthings, func, comparison, threshold):
     clusters = [[listofthings[0]]]
     for i in listofthings[1:]:
         merged = False
+        icompared = False
         for cj in clusters:
             for jmem in cj:
-                if comparison(func(jmem, i), threshold):
-                    cj.append(i)
-                    merged = True
-                    break
+                if func(jmem, i) != None:   # function worked
+                    icompared = True
+                    if comparison(func(jmem, i), threshold):
+                        cj.append(i)
+                        merged = True
+                        break
             if merged == True:
                 break
-        if merged == False:
-            clusters.append([i])
+        if merged == False and icompared == True:   # only add to list if function did not fail
+            clusters.append([i])        
     return clusters
                 
     
