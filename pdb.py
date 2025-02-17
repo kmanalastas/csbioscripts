@@ -34,18 +34,26 @@ class PDBentry:
                         expmethod = buf['rcsb_entry_info']['experimental_method']
                         self.resolution, self.expmethod = cres, expmethod
     
-    def fetchbiopythonstructure(self, directory=None):
-        outname = f'{self.id}.cif'
-        pdbfile = downloadpage('https://files.rcsb.org/download', outname, directory=directory, filename=outname)        
+    def fetchbiopythonstructure(self, pdbfile=None, directory=None):
+        if pdbfile == None: # if local path not specified, fetch from RCSB PDB
+            outname = f'{self.id}.cif'
+            pdbfile = downloadpage('https://files.rcsb.org/download', outname, directory=directory, filename=outname)
+        
+        # open PDB or MMCIF parser, depending on file extension
+        base, ext = os.path.splitext(pdbfile)
+        parser = bpdb.MMCIFParser(QUIET=True)
+        if ext.lower() == '.pdb':
+            parser = bpdb.PDBParser(QUIET=True)
+        
+        # parse file
         if os.path.exists(pdbfile):
             self.filepath = pdbfile
             if os.path.getsize(self.filepath) > 0:
                 try:
-                    parser = bpdb.MMCIFParser(QUIET=True)
                     struct = parser.get_structure(self.id, pdbfile)
                     self.biopystruct = struct
                 except:
-                    self.biopystruct = None
+                    self.biopystruct = None        
     
     def fetchuniprotmappings(self, directory=None):
         jsonfile = downloadpage('https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/', self.id, directory=directory)
