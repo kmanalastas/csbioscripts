@@ -62,14 +62,30 @@ class PDBentry:
                 buf = json.load(f)
                 if self.id in buf:
                     mappings = buf[self.id]
-                    self.uniprotmappings = mappings
+                    self.uniprotmappings = mappings['UniProt']
                 else:
                     self.uniprotmappings = []
     
-#    def chainmapping(self, chainid):
-#        if self.uniprotmappings == None:
-#            self.fetchuniprotmappings()
-#        if self.uniprotmappings != []:
+    def chainmapping(self, chainid, directory=None):
+        if self.uniprotmappings == None:
+            self.fetchuniprotmappings()
+        if self.uniprotmappings != []:
+            try:
+                for upid in self.uniprotmappings.keys():
+                    upent = self.uniprotmappings[upid]
+                    name = upent['name']
+                    mappings = upent['mappings']
+                    for i in mappings:
+                        cid = i['chain_id']
+                        if cid == chainid:
+                            return upid, name
+                # chaid id not found
+                print (f'Did not find chain {chainid}')
+                return None, None
+        
+            except:
+                print (f'Error parsing UniProt mapping')
+                return None, None
              
     
     def printchainaspdb(self, chainid, directory=None, separate=False, suffix=None, ext='cif'):
@@ -278,6 +294,8 @@ def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
                 for j in matches:
                     ddixn = ddis[ddis['id'] == i['ddiid']]
                     pdbid = ddixn.iloc[0]['pdbid']
+                    matchpdb = PDBentry(pdbid)
+                    matchpdb.fetchuniprotmappings()
                     if i['subunitnum'] == 0:
                         pdbch1 = ddixn.iloc[0]['ch1']
                         pdbs1 = ddixn.iloc[0]['s1'][0]
@@ -293,12 +311,17 @@ def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
                         pdbs2 = ddixn.iloc[0]['s1'][0]
                         pdbe2 = ddixn.iloc[0]['e1'][0]
                     
+                    m1up, m1name = matchpdb.chainmapping(pdbch1)
+                    m2up, m2name = matchpdb.chainmapping(pdbch2)
+                    
                     ixn = {'protein1': name1,
                             'protein1_start': i['start'],
                             'protein1_end': i['end'],
                             'protein1_domainmatch': f'{pdbid}_{pdbch1}',
                             'protein1_domainmatch_start': pdbs1,
                             'protein1_domainmatch_end': pdbe1,
+                            'protein1_domainmatch_uniprotid': m1up,
+                            'protein1_domainmatch_uniprotname': m1name,
                             'protein1_domainmatch_tmscore': i['tmscore'],
 
                             'protein2': name2,
@@ -307,6 +330,8 @@ def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
                             'protein2_domainmatch': f'{pdbid}_{pdbch2}',
                             'protein2_domainmatch_start': pdbs2,
                             'protein2_domainmatch_end': pdbe2,
+                            'protein2_domainmatch_uniprotid': m2up,
+                            'protein2_domainmatch_uniprotname': m2name,
                             'protein2_domainmatch_tmscore': j['tmscore']
                             }
                         
