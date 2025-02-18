@@ -174,8 +174,41 @@ class PDBentry:
                 newmod.add(newch)
             newstruc.add(newmod)
         return newstruc
-
-
+    
+    def matchresidues(self, selfmodid, selfcid, otherent, othermodid, othercid):
+        ch1 = self.biopystruct[selfmodid][selfcid]
+        ch2 = otherent.biopystruct[othermodid][othercid]
+        
+        newselfstruc = bpdb.Structure.Structure(0)
+        newselfmod = bpdb.Model.Model(0)
+        newselfch = bpdb.Chain.Chain(selfcid) 
+        for res1 in ch1:
+            if 'W' not in res1.id[0] and 'H' not in res1.id[0]: # if residue
+                if ch2.__contains__(res1.id):
+                    nres = res1.copy()
+                    newselfch.add(nres)
+            else:   # copy over hetatoms
+                nres = res1.copy()
+                newselfch.add(nres)
+        newselfmod.add(newselfch)
+        newselfstruc.add(newselfmod)
+                
+        newotherstruc = bpdb.Structure.Structure(0)
+        newothermod = bpdb.Model.Model(0)
+        newotherch = bpdb.Chain.Chain(othercid)                     
+        for res2 in ch2:
+            if 'W' not in res2.id[0] and 'H' not in res2.id[0]: # if residue
+                if ch1.__contains__(res2.id):
+                    nres = res2.copy()
+                    newotherch.add(nres)
+            else:   # copy over hetatoms
+                nres = res2.copy()
+                newotherch.add(nres)
+        newothermod.add(newotherch)
+        newotherstruc.add(newothermod)
+        return newselfstruc, newotherstruc
+        
+    
 def printpdb(struct, path):
     io = bpdb.PDBIO()
     io.set_structure(struct)
