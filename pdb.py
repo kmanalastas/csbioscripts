@@ -281,6 +281,42 @@ def parsefoldseekresults(fsout):
                 mapping.append(match)
     return mapping            
 
+def find_foldseek_match_in_3did(fsmatch, ddis):
+    ddixn = ddis[ddis['id'] == fsmatch['ddiid']]
+    pdbid = ddixn.iloc[0]['pdbid']
+    matchpdb = PDBentry(pdbid)
+    matchpdb.fetchuniprotmappings()
+    
+    if fsmatch['subunitnum'] == 0:
+        pdbchain = ddixn.iloc[0]['ch1']
+        pdbstart = ddixn.iloc[0]['s1'][0]
+        pdbend = ddixn.iloc[0]['e1'][0]
+    else:
+        pdbchain = ddixn.iloc[0]['ch2']
+        pdbstart = ddixn.iloc[0]['s2'][0]
+        pdbend = ddixn.iloc[0]['e2'][0]
+
+    mup, mname = matchpdb.chainmapping(pdbchain)
+    
+    details = {'pdbid': pdbid,
+                'pdbchain': pdbchain,
+                'pdbstart': pdbstart,
+                'pdbend': pdbend,
+                'uniprotid': mup,
+                'uniprotname': mname
+    }
+    return details
+
+#def domainhits(pdb, db, ddis, mintm=0):
+#    allmatches = []
+#    name = os.path.splitext(os.path.basename(pdb))[0]
+#    doms = foldseekquery(pdb, db, exhaustive=True, alignment=2, cov=0.7, covmode=1)
+#    for i in doms:
+#        if i['tmscore'] >= mintm:
+            
+        
+
+
 def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
     allmatches = []
     name1 = os.path.splitext(os.path.basename(pdb1))[0]
@@ -291,63 +327,92 @@ def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
         if i['tmscore'] >= mintm:
             matches = [j for j in doms2 if j['ddiid'] == i['ddiid'] and j['subunitnum'] != i['subunitnum'] and j['tmscore']>=mintm]
             if len(matches) > 0:
+                detailsi = find_foldseek_match_in_3did(i, ddis)
                 for j in matches:
-                    ddixn = ddis[ddis['id'] == i['ddiid']]
-                    pdbid = ddixn.iloc[0]['pdbid']
-                    matchpdb = PDBentry(pdbid)
-                    matchpdb.fetchuniprotmappings()
-                    if i['subunitnum'] == 0:
-                        pdbch1 = ddixn.iloc[0]['ch1']
-                        pdbs1 = ddixn.iloc[0]['s1'][0]
-                        pdbe1 = ddixn.iloc[0]['e1'][0]
-                        pdbch2 = ddixn.iloc[0]['ch2']
-                        pdbs2 = ddixn.iloc[0]['s2'][0]
-                        pdbe2 = ddixn.iloc[0]['e2'][0]
-                    else:
-                        pdbch1 = ddixn.iloc[0]['ch2']
-                        pdbs1 = ddixn.iloc[0]['s2'][0]
-                        pdbe1 = ddixn.iloc[0]['e2'][0]
-                        pdbch2 = ddixn.iloc[0]['ch1']
-                        pdbs2 = ddixn.iloc[0]['s1'][0]
-                        pdbe2 = ddixn.iloc[0]['e1'][0]
+                    detailsj = find_foldseek_match_in_3did(j, ddis)
+
+#                    ddixn = ddis[ddis['id'] == i['ddiid']]
+#                    pdbid = ddixn.iloc[0]['pdbid']
+#                    matchpdb = PDBentry(pdbid)
+#                    matchpdb.fetchuniprotmappings()
+#                    if i['subunitnum'] == 0:
+#                        pdbch1 = ddixn.iloc[0]['ch1']
+#                        pdbs1 = ddixn.iloc[0]['s1'][0]
+#                        pdbe1 = ddixn.iloc[0]['e1'][0]
+#                        pdbch2 = ddixn.iloc[0]['ch2']
+#                        pdbs2 = ddixn.iloc[0]['s2'][0]
+#                        pdbe2 = ddixn.iloc[0]['e2'][0]
+#                    else:
+#                        pdbch1 = ddixn.iloc[0]['ch2']
+#                        pdbs1 = ddixn.iloc[0]['s2'][0]
+#                        pdbe1 = ddixn.iloc[0]['e2'][0]
+#                        pdbch2 = ddixn.iloc[0]['ch1']
+#                        pdbs2 = ddixn.iloc[0]['s1'][0]
+#                        pdbe2 = ddixn.iloc[0]['e1'][0]
                     
-                    m1up, m1name = matchpdb.chainmapping(pdbch1)
-                    m2up, m2name = matchpdb.chainmapping(pdbch2)
+#                    m1up, m1name = matchpdb.chainmapping(pdbch1)
+#                    m2up, m2name = matchpdb.chainmapping(pdbch2)
                     
                     ixn = {'protein1': name1,
                             'protein1_start': i['start'],
                             'protein1_end': i['end'],
-                            'protein1_domainmatch': f'{pdbid}_{pdbch1}',
-                            'protein1_domainmatch_start': pdbs1,
-                            'protein1_domainmatch_end': pdbe1,
-                            'protein1_domainmatch_uniprotid': m1up,
-                            'protein1_domainmatch_uniprotname': m1name,
+                            'protein1_domainmatch': f"{detailsi['pdbid']}_{detailsi['pdbchain']}",
+                            'protein1_domainmatch_start': detailsi['pdbstart'],
+                            'protein1_domainmatch_end': detailsi['pdbend'],
+                            'protein1_domainmatch_uniprotid': detailsi['uniprotid'],
+                            'protein1_domainmatch_uniprotname': detailsi['uniprotname'],
                             'protein1_domainmatch_tmscore': i['tmscore'],
 
                             'protein2': name2,
                             'protein2_start': j['start'],
                             'protein2_end': j['end'],
-                            'protein2_domainmatch': f'{pdbid}_{pdbch2}',
-                            'protein2_domainmatch_start': pdbs2,
-                            'protein2_domainmatch_end': pdbe2,
-                            'protein2_domainmatch_uniprotid': m2up,
-                            'protein2_domainmatch_uniprotname': m2name,
+                            'protein2_domainmatch': f"{detailsj['pdbid']}_{detailsj['pdbchain']}",
+                            'protein2_domainmatch_start': detailsj['pdbstart'],
+                            'protein2_domainmatch_end': detailsj['pdbend'],
+                            'protein2_domainmatch_uniprotid': detailsj['uniprotid'],
+                            'protein2_domainmatch_uniprotname': detailsj['uniprotname'],
                             'protein2_domainmatch_tmscore': j['tmscore']
                             }
+
+#                    ixn = {'protein1': name1,
+#                            'protein1_start': i['start'],
+#                            'protein1_end': i['end'],
+#                            'protein1_domainmatch': f'{pdbid}_{pdbch1}',
+#                            'protein1_domainmatch_start': pdbs1,
+#                            'protein1_domainmatch_end': pdbe1,
+#                            'protein1_domainmatch_uniprotid': m1up,
+#                            'protein1_domainmatch_uniprotname': m1name,
+#                            'protein1_domainmatch_tmscore': i['tmscore'],
+
+#                            'protein2': name2,
+#                            'protein2_start': j['start'],
+#                            'protein2_end': j['end'],
+#                            'protein2_domainmatch': f'{pdbid}_{pdbch2}',
+#                            'protein2_domainmatch_start': pdbs2,
+#                            'protein2_domainmatch_end': pdbe2,
+#                            'protein2_domainmatch_uniprotid': m2up,
+#                            'protein2_domainmatch_uniprotname': m2name,
+#                            'protein2_domainmatch_tmscore': j['tmscore']
+#                            }
                         
                     allmatches.append(ixn)
     return allmatches
 
 
     
-def tmscorewrapper(refpdb, modpdb, fast=True):
+def tmscorewrapper(refpdb, modpdb, fast=True, multimer=False):
     tmpout = 'tmp_tmscore.txt'
     tm, tm_scaled = None, None
     with open(tmpout, 'w') as f:
+        mm = '0'
+        ter = '2'
+        if multimer:
+            mm = '1'
+            ter = '0'
         if fast:
-            result = subprocess.run(['/Users/kmcantos/Documents/installers/USalign', modpdb, refpdb, '-fast'], stdout=f)
+            result = subprocess.run(['/Users/kmcantos/Documents/installers/USalign', modpdb, refpdb, '-fast', '-mm', mm, '-ter', ter], stdout=f)
         else:
-            result = subprocess.run(['/Users/kmcantos/Documents/installers/USalign', modpdb, refpdb], stdout=f)
+            result = subprocess.run(['/Users/kmcantos/Documents/installers/USalign', modpdb, refpdb, '-mm', mm, '-ter', ter], stdout=f)
         if result.returncode == 0:
             tm = parsetmscoreoutput(tmpout)
         else:
