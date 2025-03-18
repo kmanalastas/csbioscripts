@@ -307,15 +307,20 @@ def find_foldseek_match_in_3did(fsmatch, ddis):
     }
     return details
 
-#def domainhits(pdb, db, ddis, mintm=0):
-#    allmatches = []
-#    name = os.path.splitext(os.path.basename(pdb))[0]
-#    doms = foldseekquery(pdb, db, exhaustive=True, alignment=2, cov=0.7, covmode=1)
-#    for i in doms:
-#        if i['tmscore'] >= mintm:
-            
-        
-
+def domainhits(pdb, db, ddis, mintm=0):
+    allmatches = []
+    name = os.path.splitext(os.path.basename(pdb))[0]
+    doms = foldseekquery(pdb, db, exhaustive=True, alignment=2, cov=0.7, covmode=1)
+    for i in doms:
+        if i['tmscore'] >= mintm:
+            details = {'querystart': i['start'],
+                        'queryend': i['end']
+            }
+            match = find_foldseek_match_in_3did(i, ddis)
+            details.update(match)
+            details.update({'tmscore': i['tmscore'], 'fident': i['fident']})
+            allmatches.append(details)
+    return allmatches
 
 def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
     allmatches = []
@@ -330,28 +335,6 @@ def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
                 detailsi = find_foldseek_match_in_3did(i, ddis)
                 for j in matches:
                     detailsj = find_foldseek_match_in_3did(j, ddis)
-
-#                    ddixn = ddis[ddis['id'] == i['ddiid']]
-#                    pdbid = ddixn.iloc[0]['pdbid']
-#                    matchpdb = PDBentry(pdbid)
-#                    matchpdb.fetchuniprotmappings()
-#                    if i['subunitnum'] == 0:
-#                        pdbch1 = ddixn.iloc[0]['ch1']
-#                        pdbs1 = ddixn.iloc[0]['s1'][0]
-#                        pdbe1 = ddixn.iloc[0]['e1'][0]
-#                        pdbch2 = ddixn.iloc[0]['ch2']
-#                        pdbs2 = ddixn.iloc[0]['s2'][0]
-#                        pdbe2 = ddixn.iloc[0]['e2'][0]
-#                    else:
-#                        pdbch1 = ddixn.iloc[0]['ch2']
-#                        pdbs1 = ddixn.iloc[0]['s2'][0]
-#                        pdbe1 = ddixn.iloc[0]['e2'][0]
-#                        pdbch2 = ddixn.iloc[0]['ch1']
-#                        pdbs2 = ddixn.iloc[0]['s1'][0]
-#                        pdbe2 = ddixn.iloc[0]['e1'][0]
-                    
-#                    m1up, m1name = matchpdb.chainmapping(pdbch1)
-#                    m2up, m2name = matchpdb.chainmapping(pdbch2)
                     
                     ixn = {'protein1': name1,
                             'protein1_start': i['start'],
@@ -373,27 +356,6 @@ def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
                             'protein2_domainmatch_uniprotname': detailsj['uniprotname'],
                             'protein2_domainmatch_tmscore': j['tmscore']
                             }
-
-#                    ixn = {'protein1': name1,
-#                            'protein1_start': i['start'],
-#                            'protein1_end': i['end'],
-#                            'protein1_domainmatch': f'{pdbid}_{pdbch1}',
-#                            'protein1_domainmatch_start': pdbs1,
-#                            'protein1_domainmatch_end': pdbe1,
-#                            'protein1_domainmatch_uniprotid': m1up,
-#                            'protein1_domainmatch_uniprotname': m1name,
-#                            'protein1_domainmatch_tmscore': i['tmscore'],
-
-#                            'protein2': name2,
-#                            'protein2_start': j['start'],
-#                            'protein2_end': j['end'],
-#                            'protein2_domainmatch': f'{pdbid}_{pdbch2}',
-#                            'protein2_domainmatch_start': pdbs2,
-#                            'protein2_domainmatch_end': pdbe2,
-#                            'protein2_domainmatch_uniprotid': m2up,
-#                            'protein2_domainmatch_uniprotname': m2name,
-#                            'protein2_domainmatch_tmscore': j['tmscore']
-#                            }
                         
                     allmatches.append(ixn)
     return allmatches
