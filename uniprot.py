@@ -119,7 +119,50 @@ class Uniprot:
                         seq += line.strip()
             self.sequence = seq
             return self.sequence
-            
+
+def list_pdb_interactions(upid1, upid2):
+    prot1 = Uniprot(upid1)
+    prot2 = Uniprot(upid2)
+    prot1.sortedPDBstructures()
+    prot2.sortedPDBstructures()
+    pdbids1 = list(set([i['pdb_id'] for i in prot1.pdbentries]))
+    pdbids2 = list(set([i['pdb_id'] for i in prot2.pdbentries]))
+    commonpdb = [i for i in pdbids1 if i in pdbids2]
+
+    # instances when both UPIDs are in PDB entry, and:
+    maxint_entry = None
+    nints = 0
+
+    for pdbid in commonpdb:
+        pdbent = PDBentry(pdbid)
+        pdbent.fetchpdbidresolution()
+        if (pdbent.expmethod == 'EM' and pdbent.resolution <= 2.5) or (pdbent.expmethod == 'X-ray' and pdbent.resolution <= 3.0):
+            #print (pdbent.id, pdbent.expmethod, pdbent.resolution)
+            cids1 = [i['chain_id'] for i in prot1.pdbentries if i['pdb_id'] == pdbid]
+            cids2 = [i['chain_id'] for i in prot2.pdbentries if i['pdb_id'] == pdbid]
+            #print (cids1)
+            #print (cids2)
+            pdbent.fetchbiopythonstructure()
+            if pdbent.biopystruct != None:
+                pdbent.removealtloc()
+                pdbent.biopystruct = pdbent.removeheteroatoms()
+                for chi in cids1:
+                    for chj in cids2:
+                        cnum = pdbent.count_chain_interactions(chi, chj)
+                        if cnum != None:
+                            if cnum >= nints:
+                                maxint_entry = (pdbent.id, chi, chj)
+                                nints = cnum
+    return maxint_entry, nints
+    
+    
+#    if len(pos) > 0:    # interaction in PDB
+#        return True, pos
+#    if len(neg) > 0:    # non-interaction in PDB
+#        return False, neg
+#    else:               # no PDB records of sufficient resolution
+#        return None, []
+    
                 
         
         
