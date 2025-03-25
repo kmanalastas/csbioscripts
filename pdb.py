@@ -10,8 +10,9 @@ import os
 import json
 import subprocess
 from csbioscripts.fetchfromdb import downloadpage
+from csbioscripts.misc import distancematrix
 import Bio.PDB as bpdb
-
+import numpy as np
 
 class PDBentry:
     def __init__(self, pdbid):
@@ -223,6 +224,32 @@ class PDBentry:
         newothermod.add(newotherch)
         newotherstruc.add(newothermod)
         return newselfstruc, newotherstruc
+    
+    def chains_interacting(self, chainid1, chainid2, distthreshold=5.0, atomthreshold=3):
+        interacting = False
+        ncontacts = self.count_chain_interactions(chainid1, chainid2, distthreshold=distthreshold)
+        if ncontacts >= atomthreshold:
+            interacting = True
+        return interacting
+
+    def count_chain_interactions(self, chainid1, chainid2, distthreshold=5.0):
+        nresints = 0    # number of residue-residue interactions
+        if (not self.biopystruct[0].__contains__(chainid1)) or (not self.biopystruct[0].__contains__(chainid2)):
+            return None
+        for res1 in self.biopystruct[0][chainid1]:
+            for res2 in self.biopystruct[0][chainid2]:
+                atoms1 = np.array([atom.coord for atom in res1 if hasattr(atom, 'coord')])
+                atoms2 = np.array([atom.coord for atom in res2 if hasattr(atom, 'coord')])
+                distmat = distancematrix(atoms1, atoms2)
+                contactmap = np.where(distmat <= distthreshold, 1, 0)
+                if np.sum(contactmap) > 0:
+                    nresints += 1
+        return nresints
+    
+    def chainsequence(self, chainid):
+        ppb = bpdb.CaPPBuilder()
+        for pp in ppb.build_peptides(self.biopystruct[0][chainid]):
+            print(pp.get_sequence())
         
     
 def printpdb(struct, path):
