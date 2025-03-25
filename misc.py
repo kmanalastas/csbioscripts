@@ -6,6 +6,8 @@
 # This module was developed by:
 #   Karen Manalastas-Cantos    <karen.manalastas-cantos AT cssb-hamburg.de>
 
+import numpy as np
+
 def lazycluster(listofthings, func, comparison, threshold):
     clusters = [[listofthings[0]]]
     for i in listofthings[1:]:
@@ -24,6 +26,11 @@ def lazycluster(listofthings, func, comparison, threshold):
         if merged == False and icompared == True:   # only add to list if function did not fail
             clusters.append([i])        
     return clusters
+
+def distancematrix(a, b):
+    distmat = np.linalg.norm(a[:, None, :] - b[None, :, :], axis=-1)
+    return distmat
+
                 
     
     
