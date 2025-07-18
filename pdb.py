@@ -13,6 +13,7 @@ from csbioscripts.fetchfromdb import downloadpage
 from csbioscripts.misc import distancematrix
 import Bio.PDB as bpdb
 import numpy as np
+from datetime import datetime
 
 class PDBentry:
     def __init__(self, pdbid):
@@ -34,6 +35,17 @@ class PDBentry:
                         cres = (buf['rcsb_entry_info']['resolution_combined'][0])
                         expmethod = buf['rcsb_entry_info']['experimental_method']
                         self.resolution, self.expmethod = cres, expmethod
+    
+    def depositiondate(self, directory=None):
+        jsonfile = downloadpage('https://data.rcsb.org/rest/v1/core/entry', self.id, directory=directory)
+            
+        if os.path.exists(jsonfile):        
+            with open(jsonfile, "r") as f:
+                buf = json.load(f)
+                if 'pdbx_database_status' in buf:
+                    if 'recvd_initial_deposition_date' in buf['pdbx_database_status']: 
+                        depdate = datetime.fromisoformat(buf['pdbx_database_status']['recvd_initial_deposition_date'][:-5])
+                        return depdate
     
     def fetchbiopythonstructure(self, pdbfile=None, directory=None):
         if pdbfile == None: # if local path not specified, fetch from RCSB PDB
