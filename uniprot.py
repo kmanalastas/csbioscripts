@@ -12,6 +12,7 @@ from csbioscripts.fetchfromdb import downloadpage
 from csbioscripts.pdb import PDBentry, tmscorewrapper
 from csbioscripts.misc import lazycluster
 import operator
+from datetime import datetime
 
 class Uniprot:
     def __init__(self, upid):
@@ -129,13 +130,17 @@ def list_pdb_interactions(upid1, upid2):
     pdbids2 = list(set([i['pdb_id'] for i in prot2.pdbentries]))
     commonpdb = [i for i in pdbids1 if i in pdbids2]
 
-    # instances when both UPIDs are in PDB entry, and:
+    # instances when both UPIDs are in PDB entry
     maxint_entry = None
     nints = 0
+
+    # earliest deposition date for given UPID pair
+    mindate = datetime.today()
 
     for pdbid in commonpdb:
         pdbent = PDBentry(pdbid)
         pdbent.fetchpdbidresolution()
+
         if (pdbent.expmethod == 'EM' and pdbent.resolution <= 2.5) or (pdbent.expmethod == 'X-ray' and pdbent.resolution <= 3.0):
             #print (pdbent.id, pdbent.expmethod, pdbent.resolution)
             cids1 = [i['chain_id'] for i in prot1.pdbentries if i['pdb_id'] == pdbid]
@@ -148,12 +153,18 @@ def list_pdb_interactions(upid1, upid2):
                 pdbent.biopystruct = pdbent.removeheteroatoms()
                 for chi in cids1:
                     for chj in cids2:
-                        cnum = pdbent.count_chain_interactions(chi, chj)
-                        if cnum != None:
-                            if cnum >= nints:
-                                maxint_entry = (pdbent.id, chi, chj)
-                                nints = cnum
-    return maxint_entry, nints
+                        if chi != chj:
+                            cnum = pdbent.count_chain_interactions(chi, chj)
+                            if cnum != None:    # interaction found
+                                # look up deposition date
+                                pdbdepdate = pdbent.depositiondate()
+                                if pdbdepdate < mindate:
+                                    mindate = pdbdepdate
+                            
+                                if cnum >= nints:
+                                    maxint_entry = (pdbent.id, chi, chj)
+                                    nints = cnum
+    return maxint_entry, nints, mindate
     
     
 #    if len(pos) > 0:    # interaction in PDB
