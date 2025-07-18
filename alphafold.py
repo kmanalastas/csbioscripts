@@ -9,8 +9,9 @@
 import json
 import os
 from Bio import SeqIO
+from csbioscripts.crosslinks import parsecrosslinks_xlmstools_af3
 
-def af3localrunjson(runname, sequencelist, seed=[1], version=1, bondedpairlist=None, userccdstr=None):
+def af3localrunjson(runname, sequencelist, seed=[1], version=1, bondedpairlist=None, userccdstr=None, crosslinks=None):
     runjson = {}
     outname = f'{runname}.json'
     
@@ -23,6 +24,8 @@ def af3localrunjson(runname, sequencelist, seed=[1], version=1, bondedpairlist=N
         runjson['userCCD'] = userccdstr
     runjson['dialect'] = 'alphafold3'
     runjson['version'] = version
+    if crosslinks != None:
+        runjson['crosslinks'] = crosslinks
     with open(outname, 'w') as f:
         json.dump(runjson, f)
         print (f'output file: {outname}')
@@ -52,7 +55,7 @@ def buildproteinsequence(chainid, sequence, modifications=None, unpairedmsa=None
 
     return params
     
-def af3jobfromfasta(fastafile):
+def af3jobfromfasta(fastafile, crosslinkfile=None, crosslinker=None, nseeds=None):
     basename = os.path.basename(fastafile)
     jobname, ext = os.path.splitext(basename)            
     records = list(SeqIO.parse(fastafile, 'fasta'))
@@ -60,5 +63,13 @@ def af3jobfromfasta(fastafile):
     chainid = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
     for i,rec in enumerate(records):
         sequences.append(buildproteinsequence(chainid[i], str(rec._seq)))
-    af3localrunjson(jobname, sequences)        
+    
+    crosslinks = None
+    if crosslinkfile != None:
+        crosslinks = parsecrosslinks_xlmstools_af3(crosslinkfile, crosslinker)
+    if nseeds != None:
+        seeds = [i for i in range(1, nseeds+1)]
+    else:
+        seeds = [1]
+    af3localrunjson(jobname, sequences, crosslinks=crosslinks, seed=seeds)
     
