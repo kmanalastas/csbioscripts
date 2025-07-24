@@ -10,6 +10,8 @@ import json
 import os
 from Bio import SeqIO
 from csbioscripts.crosslinks import parsecrosslinks_xlmstools_af3
+from parsers import findfieldinjson
+import matplotlib.pyplot as plt
 
 def af3localrunjson(runname, sequencelist, seed=[1], version=1, bondedpairlist=None, userccdstr=None, crosslinks=None):
     runjson = {}
@@ -72,4 +74,22 @@ def af3jobfromfasta(fastafile, crosslinkfile=None, crosslinker=None, nseeds=None
     else:
         seeds = [1]
     af3localrunjson(jobname, sequences, crosslinks=crosslinks, seed=seeds)
+    
+def plotpae(jsonfile):
+    outfig = os.path.splitext(jsonfile)[0] + '_pae.pdf'
+    pae = findfieldinjson(jsonfile, 'pae')
+    seqlen = len(pae[0])
+    if pae != None:
+        token_chain_ids = findfieldinjson(jsonfile, 'token_chain_ids')
+        breaks = [(i+i-1)/2 for i in range(1,seqlen) if token_chain_ids[i] != token_chain_ids[i-1]]
+        plt.imshow(pae, cmap='Greens_r')
+        for i in breaks:
+            plt.plot([0, seqlen], [i,i], 'k--', alpha=0.5)
+            plt.plot([i,i], [0, seqlen], 'k--', alpha=0.5)
+        plt.colorbar(label='Expected position error (Ångströms)')
+        plt.xlabel('Scored residue')
+        plt.ylabel('Aligned residue')        
+        plt.savefig(outfig)
+        print (f'Saved PAE plot: {outfig}')
+    
     
