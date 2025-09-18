@@ -8,11 +8,34 @@
 
 import json
 import os
-from Bio import SeqIO
+from Bio import SeqIO, PDB
 from csbioscripts.crosslinks import parsecrosslinks_xlmstools_af3
-from parsers import findfieldinjson
+from csbioscripts.fetchfromdb import downloadpage
+from csbioscripts.parsers import findfieldinjson
 import matplotlib.pyplot as plt
+import numpy as np
+import json
 
+class AFdbmodel:
+    def __init__(self, uniprotid, directory=None):
+        self.uniprotid = uniprotid
+        self.biopystructure = None
+        self.pae = None
+        self.fetchmodel(directory=directory)
+    
+    def fetchmodel(self, directory=None):
+        # download PDB model
+        pdbfile = f'{self.uniprotid}.pdb'
+        pdbpath = downloadpage('https://alphafold.ebi.ac.uk/files', f'AF-{self.uniprotid}-F1-model_v4.pdb', directory=directory, filename=pdbfile)
+        print (pdbpath)
+        if pdbpath != None:
+            parser = PDB.PDBParser()
+            self.biopystructure = parser.get_structure(pdbpath, pdbpath)
+            # download PAE plot
+            paefile = f'{self.uniprotid}_pae.json'
+            paepath = downloadpage('https://alphafold.ebi.ac.uk/files', f'AF-{self.uniprotid}-F1-predicted_aligned_error_v4.json', directory=directory, filename=paefile)
+            self.pae = findfieldinjson(paefile, 'predicted_aligned_error')
+        
 def af3localrunjson(runname, sequencelist, seed=[1], version=1, bondedpairlist=None, userccdstr=None, crosslinks=None):
     runjson = {}
     outname = f'{runname}.json'
@@ -91,5 +114,48 @@ def plotpae(jsonfile):
         plt.ylabel('Aligned residue')        
         plt.savefig(outfig)
         print (f'Saved PAE plot: {outfig}')
+
+def highlightlowPAEinterchain(jsonfile, cxsession, maxpae=5):
+    pae = findfieldinjson(jsonfile, 'pae')
+    seqlen = len(pae[0])
+    if pae == None:
+        print (f'PAE values not found in {jsonfile}')
+        return 0
+    
+    # parse low PAE values between chains
+    mark = {}
+    chain = findfieldinjson(jsonfile, 'token_chain_ids')
+    resi = findfieldinjson(jsonfile, 'token_res_ids') 
+    contactmap = np.where(np.array(pae) <= maxpae, 1, 0)
+    for i in range(0, seqlen):
+        for j in range(0, seqlen):
+            if chain[i] != chain[j]:
+                if contactmap[i,j] == 1:
+                    mark = add_i(i, mark, chain, resi)
+                    mark = add_i(j, mark, chain, resi)
+    print (mark)
+    
+    # generate image with interchain low PAE colored in red
+    outcxs = os.path.splitext(cxsession)[0] + f'_highlight_{str(maxpae)}.cxc'
+    outfig = os.path.splitext(cxsession)[0] + f'_highlight_{str(maxpae)}.png'
+    with open(outcxs, 'w') as f:
+        f.write(f'open {cxsession}\n')
+        for chid in mark.keys():
+            f.write(f'color #1/{chid}:')
+            f.write(f'{mark[chid][0]}')
+            for rid in mark[chid][1:]:
+                f.write(f', {rid}')
+            f.write(' red cartoon\n')
+        f.write(f'save {outfig}')
+         
+                    
+def add_i(i, mark, chain, resi):
+    if chain[i] in mark:
+        if resi[i] not in mark[chain[i]]:
+            mark[chain[i]].append(resi[i])
+    else:
+        mark[chain[i]] = [resi[i]]
+    return mark
+    
     
     
