@@ -11,6 +11,7 @@ import json
 import subprocess
 from csbioscripts.fetchfromdb import downloadpage
 from csbioscripts.misc import distancematrix
+from csbioscripts.seq import alignsequences
 import Bio.PDB as bpdb
 import numpy as np
 from datetime import datetime
@@ -46,6 +47,17 @@ class PDBentry:
                     if 'recvd_initial_deposition_date' in buf['pdbx_database_status']: 
                         depdate = datetime.fromisoformat(buf['pdbx_database_status']['recvd_initial_deposition_date'][:-5])
                         return depdate
+
+    def entrytitle(self, directory=None):
+        jsonfile = downloadpage('https://data.rcsb.org/rest/v1/core/entry', self.id, directory=directory)
+            
+        if os.path.exists(jsonfile):        
+            with open(jsonfile, "r") as f:
+                buf = json.load(f)
+                if 'struct' in buf:
+                    if 'title' in buf['struct']: 
+                        title = buf['struct']['title']
+                        return title
     
     def fetchbiopythonstructure(self, pdbfile=None, directory=None):
         if pdbfile == None: # if local path not specified, fetch from RCSB PDB
@@ -69,38 +81,42 @@ class PDBentry:
                     self.biopystruct = None        
     
     def fetchuniprotmappings(self, directory=None):
-        jsonfile = downloadpage('https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/', self.id, directory=directory)
+        jsonfile = downloadpage('https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/', self.id, directory=directory, filename=f'{self.id}_map.json')
         if os.path.exists(jsonfile):
             with open(jsonfile, "r") as f:
                 buf = json.load(f)
                 if self.id in buf:
                     mappings = buf[self.id]
                     self.uniprotmappings = mappings['UniProt']
+                    self.parseuniprotmappings()
                 else:
-                    self.uniprotmappings = []
+                    self.uniprotmappings = None
     
-    def chainmapping(self, chainid, directory=None):
+    def parseuniprotmappings(self):
+        outmap = {}
+        if self.uniprotmappings != None:
+            for upid in self.uniprotmappings.keys():
+                maplist = self.uniprotmappings[upid]['mappings']
+                for mapping in maplist:
+                    chid = mapping['chain_id']
+                    outmap[chid] = upid
+            self.uniprotmappings = outmap 
+    
+    def mapchaintouniprot(self, chainid):
         if self.uniprotmappings == None:
             self.fetchuniprotmappings()
-        if self.uniprotmappings != []:
-            try:
-                for upid in self.uniprotmappings.keys():
-                    upent = self.uniprotmappings[upid]
-                    name = upent['name']
-                    mappings = upent['mappings']
-                    for i in mappings:
-                        cid = i['chain_id']
-                        if cid == chainid:
-                            return upid, name
-                # chaid id not found
-                print (f'Did not find chain {chainid}')
-                return None, None
         
-            except:
-                print (f'Error parsing UniProt mapping')
-                return None, None
-             
-    
+        uniprotmatch = None
+        if self.uniprotmappings != None:
+            for upid in self.uniprotmappings.keys():
+                for mapping in self.uniprotmappings[upid]['mappings']:
+                    if mapping['chain_id'] == chainid:
+                        uniprotmatch = upid
+                        break
+                if uniprotmatch != None:
+                    break
+        return uniprotmatch
+                 
     def printchainaspdb(self, chainid, directory=None, separate=False, suffix=None, ext='cif'):
         if self.biopystruct == None:
             self.fetchbiopythonstructure()
@@ -146,6 +162,85 @@ class PDBentry:
                     printcif(struct, outpdb)
                 outpdblist.append(outpdb)
         return outpdblist
+
+    def printsubstructurepdb(self, chainidlist, directory=None, separate=False, suffix=None, ext='cif', renamechains=False, outfile=None):
+        if self.biopystruct == None:
+            self.fetchbiopythonstructure()
+            
+        outpdblist = []
+        concatchainids = ''
+        for cid in chainidlist:
+            concatchainids += str(cid)                        
+
+        if separate:
+            for inmodel in self.biopystruct:
+                chainfound = [self.biopystruct[inmodel.id].__contains__(chainid) for chainid in chainidlist]
+                if False in chainfound:
+                    print (f'One chain of {chainidlist} not found')
+                else:   
+                    struct = bpdb.Structure.Structure(self.biopystruct.id)
+                    model = bpdb.Model.Model(0)
+                    for chainid in chainidlist:
+                        model.add(self.biopystruct[inmodel.id][chainid])
+                    struct.add(model)
+                    
+                    if renamechains:
+                        changechainids(struct)
+                    
+                    # set filename
+                    if outfile == None:
+                        outpdb = os.path.splitext(self.filepath)[0] + f'_{concatchainids}_{str(inmodel.id)}.{ext}'
+                    else:
+                        outpdb = outfile + f'_{str(inmodel.id)}.{ext}'
+                        
+                    if suffix != None: 
+                        outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.{ext}'
+
+                    if directory != None:
+                        outpdb = os.path.join(directory, outpdb)
+
+
+                    if ext == 'pdb':
+                        printpdb(struct, outpdb)
+                    else:
+                        printcif(struct, outpdb)
+
+                    outpdblist.append(outpdb)
+                    
+        else:
+            struct = bpdb.Structure.Structure(0)
+            chainfound = [self.biopystruct[inmodel.id].__contains__(chainid) for inmodel in self.biopystruct for chainid in chainidlist]
+            if False in chainfound:
+                print (f'One of the chains {chainidlist} not found')
+            else:
+                for inmodel in self.biopystruct:
+                    model = bpdb.Model.Model(inmodel.id)
+                    for chainid in chainidlist:
+                        model.add(self.biopystruct[inmodel.id][chainid])
+                    struct.add(model)
+                
+                if renamechains:
+                    changechainids(struct)
+                    
+                # set filename
+                if outfile == None:
+                    outpdb = os.path.splitext(self.filepath)[0] + f'_{concatchainids}.{ext}'
+                else:
+                    outpdb = outfile + f'.{ext}'
+                    
+                if suffix != None: 
+                    outpdb = os.path.splitext(outpdb)[0] + f'_{suffix}.{ext}'
+
+                if directory != None:
+                    outpdb = os.path.join(directory, outpdb)
+
+                if ext == 'pdb':
+                    printpdb(struct, outpdb)
+                else:
+                    printcif(struct, outpdb)
+
+                outpdblist.append(outpdb)
+        return outpdblist
     
     def chainscontainingligand(self, ligandname, directory=None):
         outchains = []
@@ -165,9 +260,7 @@ class PDBentry:
         return sorted(list(set(outchains)))
     
     def chainlength(self, chainid, directory=None):
-        if self.biopystruct == None:
-            self.fetchbiopythonstructure(directory=directory)
-        residues = [i for i in self.biopystruct[0][chainid]]
+        residues = self.chainsequence(chainid, directory=directory)
         return len(residues)
     
     def removealtloc(self, directory=None):
@@ -202,6 +295,8 @@ class PDBentry:
                             newch.add(newres)
                 newmod.add(newch)
             newstruc.add(newmod)
+            
+        self.biopystruct = newstruc
         return newstruc
     
     def matchresidues(self, selfmodid, selfcid, otherent, othermodid, othercid):
@@ -239,30 +334,81 @@ class PDBentry:
     
     def chains_interacting(self, chainid1, chainid2, distthreshold=5.0, atomthreshold=3):
         interacting = False
-        ncontacts = self.count_chain_interactions(chainid1, chainid2, distthreshold=distthreshold)
+        ncontacts = self.count_chain_interactions([chainid1], [chainid2], distthreshold=distthreshold)
         if ncontacts >= atomthreshold:
             interacting = True
         return interacting
 
-    def count_chain_interactions(self, chainid1, chainid2, distthreshold=5.0):
+    def count_chain_interactions(self, chainidlist1, chainidlist2, caonly=False):
+        
         nresints = 0    # number of residue-residue interactions
-        if (not self.biopystruct[0].__contains__(chainid1)) or (not self.biopystruct[0].__contains__(chainid2)):
-            return None
-        for res1 in self.biopystruct[0][chainid1]:
-            for res2 in self.biopystruct[0][chainid2]:
-                atoms1 = np.array([atom.coord for atom in res1 if hasattr(atom, 'coord')])
-                atoms2 = np.array([atom.coord for atom in res2 if hasattr(atom, 'coord')])
-                distmat = distancematrix(atoms1, atoms2)
-                contactmap = np.where(distmat <= distthreshold, 1, 0)
-                if np.sum(contactmap) > 0:
-                    nresints += 1
+        for chainid1 in chainidlist1:
+            for chainid2 in chainidlist2:
+                if (not self.biopystruct[0].__contains__(chainid1)) or (not self.biopystruct[0].__contains__(chainid2)):
+                    return None
+        
+        if caonly:
+            distthreshold=10.0
+            atoms1 = np.array([atom.coord for chainid1 in chainidlist1 for res1 in self.biopystruct[0][chainid1] for atom in res1 if hasattr(atom, 'coord') and atom.name=='CA'])
+            atoms2 = np.array([atom.coord for chainid2 in chainidlist2 for res2 in self.biopystruct[0][chainid2] for atom in res2 if hasattr(atom, 'coord') and atom.name=='CA'])
+        
+        else:
+            distthreshold=5.0
+            atoms1 = np.array([atom.coord for chainid1 in chainidlist1 for res1 in self.biopystruct[0][chainid1] for atom in res1 if hasattr(atom, 'coord')])
+            atoms2 = np.array([atom.coord for chainid2 in chainidlist2 for res2 in self.biopystruct[0][chainid2] for atom in res2 if hasattr(atom, 'coord')])
+
+#        print ('DEBUG (PDBentry.count_chain_interactions):', self.id, atoms1.shape, atoms2.shape)
+        distmat = distancematrix(atoms1, atoms2)
+        contactmap = np.where(distmat <= distthreshold, 1, 0)
+        nresints = int(np.sum(contactmap))
+
+
+#        for res1 in self.biopystruct[0][chainid1]:
+#            for res2 in self.biopystruct[0][chainid2]:
+#                atoms1 = np.array([atom.coord for atom in res1 if hasattr(atom, 'coord')])
+#                atoms2 = np.array([atom.coord for atom in res2 if hasattr(atom, 'coord')])
+#                print ('DEBUG (PDBentry.count_chain_interactions):', atoms1.shape, atoms2.shape)
+#                if (len(atoms1) > 0) and (len(atoms2) > 0):
+#                    distmat = distancematrix(atoms1, atoms2)
+#                    contactmap = np.where(distmat <= distthreshold, 1, 0)
+#                    if np.sum(contactmap) > 0:
+#                        nresints += 1
         return nresints
     
-    def chainsequence(self, chainid):
-        ppb = bpdb.CaPPBuilder()
-        for pp in ppb.build_peptides(self.biopystruct[0][chainid]):
-            print(pp.get_sequence())
+    def chainsequence(self, chainid, directory=None):
+        if self.biopystruct == None:
+            self.fetchbiopythonstructure(directory=directory)
         
+        ppb = bpdb.CaPPBuilder()
+        residues = ''
+        for pp in ppb.build_peptides(self.biopystruct[0][chainid]):
+            residues += pp.get_sequence()
+            
+        return residues
+    
+    def chainstructuralhomologs(self, chainid, operator='relaxed_shape_match'):
+        from rcsbapi.search import StructSimilarityQuery
+        
+        qry = StructSimilarityQuery(
+            structure_search_type="entry_id",
+            entry_id=self.id,
+            structure_input_type="chain_id",
+            chain_id=chainid,
+            operator="relaxed_shape_match",
+            target_search_space="polymer_entity_instance"
+        )
+        return qry
+        
+        
+def pdbattributequery(attribute, operator, value):
+    from rcsbapi.search import AttributeQuery
+    
+    qry = AttributeQuery(
+        attribute=attribute,
+        operator=operator,
+        value = value
+    )
+    return qry
     
 def printpdb(struct, path):
     io = bpdb.PDBIO()
@@ -270,9 +416,27 @@ def printpdb(struct, path):
     io.save(path)
     
 def printcif(struct, path):
+    print ('debug: biopystruct', struct)
+    print ('debug: path', path)
+    for mod in struct:
+        print ('debug: mod', mod)
+        for ch in mod:
+            print ('debug: ch', ch)
     io = bpdb.mmcifio.MMCIFIO()
     io.set_structure(struct)
     io.save(path)
+
+def changechainids(biopystruc):
+    tmpids = [str(i) for i in range(101, 227)]
+    chainids = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+    added = [str(i) for i in range(1,101)]
+    chainids += added
+    for model in biopystruc:
+        for i, chain in enumerate(model):
+            chain.id = tmpids[i]
+    for model in biopystruc:
+        for i, chain in enumerate(model):
+            chain.id = chainids[i]
 
 def foldseekquery(pdbfile, db, exhaustive=False, alignment=2, cov=0.7, covmode=0, directory=None):
     fsout = f'{os.path.splitext(pdbfile)[0]}.m8'
@@ -335,14 +499,15 @@ def find_foldseek_match_in_3did(fsmatch, ddis):
         pdbstart = ddixn.iloc[0]['s2'][0]
         pdbend = ddixn.iloc[0]['e2'][0]
 
-    mup, mname = matchpdb.chainmapping(pdbchain)
+#    mup, mname = matchpdb.uniprotmappings[pdbchain][0]
+    mup = matchpdb.uniprotmappings[pdbchain]
     
     details = {'pdbid': pdbid,
                 'pdbchain': pdbchain,
                 'pdbstart': pdbstart,
                 'pdbend': pdbend,
                 'uniprotid': mup,
-                'uniprotname': mname
+                'uniprotname': mup #mname
     }
     return details
 
@@ -399,8 +564,93 @@ def interactingdomains(pdb1, pdb2, db, ddis, mintm=0):
                     allmatches.append(ixn)
     return allmatches
 
-
+def dockq(refpdb, modpdb):
+    from DockQ.DockQ import load_PDB, run_on_all_native_interfaces
     
+    model = load_PDB(modpdb)
+    native = load_PDB(refpdb)
+
+    # native:model chain map dictionary for two interfaces
+    chain_map = {"A":"A", "B":"B"}
+    # returns a dictionary containing the results and the total DockQ score
+    return run_on_all_native_interfaces(model, native, chain_map=chain_map)
+    
+def dockqscorewrapper(refpdb, modpdb):
+    # print pdb files with matching residues only
+    ref = PDBentry('ref')
+    mod = PDBentry('mod')
+    ref.fetchbiopythonstructure(refpdb)
+    mod.fetchbiopythonstructure(modpdb)
+    commonchainids = [chain.id for chain in ref.biopystruct[0] if mod.biopystruct[0].__contains__(chain.id)]
+    
+    ## build new structures 
+    refstruct = bpdb.Structure.Structure(ref.biopystruct.id)
+    refmodel = bpdb.Model.Model(0)
+    modstruct = bpdb.Structure.Structure(mod.biopystruct.id)
+    modmodel = bpdb.Model.Model(0)
+    for chainid in commonchainids:
+        refchain = bpdb.Chain.Chain(chainid)
+        modchain = bpdb.Chain.Chain(chainid)
+        refseq = ref.chainsequence(chainid)
+        modseq = mod.chainsequence(chainid)
+        alignment = alignsequences(refseq, modseq)
+        mapping = equivalentresidues(ref.biopystruct[0][chainid], mod.biopystruct[0][chainid], alignment[0])
+        #print (chainid, mapping)
+        refres = [res for res in ref.biopystruct[0][chainid] if res.id[1] in mapping]
+        modres = [mod.biopystruct[0][chainid][mapping[res.id[1]]] for res in refres]
+        for i in range(len(refres)):
+            # change refres residue number to match modres
+            newref = refres[i].copy()
+            newref.id = modres[i].id
+            
+            # add residues to respective chains
+            refchain.add(newref)
+            modchain.add(modres[i])
+        refmodel.add(refchain)
+        modmodel.add(modchain)
+    refstruct.add(refmodel)
+    modstruct.add(modmodel)
+    tmpref = 'tmpref.pdb'
+    tmpmod = 'tmpmod.pdb'
+    printpdb(refstruct, 'tmpref.pdb')
+    printpdb(modstruct, 'tmpmod.pdb')
+    
+    # call dockq installation
+    tmpout = 'tmp_dockq.txt'
+    os.system(f'/Users/kmcantos/Documents/installers/DockQ-master/DockQ.py {tmpmod} {tmpref} > {tmpout}')
+    dqscore = -1
+    with open(tmpout, 'r') as f:
+        for line in f:
+            if line[0:5] == 'DockQ':
+                ln = line.strip().split()
+                dqscore = ln[1]
+                break
+    name = os.path.splitext(os.path.basename(modpdb))[0]
+    print (name, dqscore)    
+
+    # clean up intermediate files
+    #os.system(f'rm {tmpref} {tmpmod} {tmpout}')
+
+    return dqscore
+
+def equivalentresidues(refchain, modchain, alignment):
+    mapping = {}
+    refresidues = [res for res in refchain]
+    modresidues = [res for res in modchain]
+    refind = -1
+    modind = -1
+    #print (alignment[0][0], len(alignment[0][0]))
+    for i in range(len(alignment[0])):
+#        print (i)
+#        print (alignment[0][i], alignment[1][i])
+        if alignment[0][i] != '-':
+            refind += 1
+        if alignment[1][i] != '-':
+            modind += 1
+        if alignment[0][i] != '-' and alignment[1][i] != '-':
+            mapping[refresidues[refind].id[1]] = modresidues[modind].id[1] 
+    return mapping
+
 def tmscorewrapper(refpdb, modpdb, fast=True, multimer=False):
     tmpout = 'tmp_tmscore.txt'
     tm, tm_scaled = None, None
@@ -437,4 +687,5 @@ def parsetmscoreoutput(tmout):
     
     
 
+            
             
