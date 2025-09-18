@@ -120,8 +120,26 @@ class Uniprot:
                         seq += line.strip()
             self.sequence = seq
             return self.sequence
+    
+    def pdbseqhomologs(self, evalue=0.1, minid=0.3):
+        from rcsbapi.search import SeqSimilarityQuery
+        
+        if self.sequence == None:
+            self.getsequence()
+        if self.sequence == None:
+            print ('Sequence could not be retrieved')
+            return None
+        else:
+            qry = SeqSimilarityQuery(
+                value=self.sequence,
+                evalue_cutoff = evalue,
+                identity_cutoff = minid,
+                sequence_type = 'protein'
+            )
+            return qry
+            
 
-def list_pdb_interactions(upid1, upid2):
+def list_pdb_interactions(upid1, upid2, findnoninteracting=False, caonly=False):
     prot1 = Uniprot(upid1)
     prot2 = Uniprot(upid2)
     prot1.sortedPDBstructures()
@@ -136,6 +154,7 @@ def list_pdb_interactions(upid1, upid2):
 
     # earliest deposition date for given UPID pair
     mindate = datetime.today()
+    ncases = 0
 
     for pdbid in commonpdb:
         pdbent = PDBentry(pdbid)
@@ -149,30 +168,58 @@ def list_pdb_interactions(upid1, upid2):
             #print (cids2)
             pdbent.fetchbiopythonstructure()
             if pdbent.biopystruct != None:
-                pdbent.removealtloc()
-                pdbent.biopystruct = pdbent.removeheteroatoms()
-                for chi in cids1:
-                    for chj in cids2:
-                        if chi != chj:
-                            cnum = pdbent.count_chain_interactions(chi, chj)
-                            if cnum != None:    # interaction found
-                                # look up deposition date
-                                pdbdepdate = pdbent.depositiondate()
-                                if pdbdepdate < mindate:
-                                    mindate = pdbdepdate
+                if findnoninteracting:
+                    print (pdbent.id, cids1, cids2)
+                    before = datetime.now()
+                    cnum = pdbent.count_chain_interactions(cids1, cids2, caonly=caonly)
+                    print (datetime.now()-before)
+                    
+                    if cnum != None:    # interaction found
+                        ncases += 1
+        
+                        # look up deposition date
+                        pdbdepdate = pdbent.depositiondate()
+                        if pdbdepdate < mindate:
+                            mindate = pdbdepdate
+                        
+                        if cnum >= nints:
+                            maxint_entry = (pdbent.id, cids1, cids2)
+                            nints = cnum
+                            if nints > 0:
+                                break                    
+                    
+                else:
+                    pdbent.removealtloc()
+                    pdbent.biopystruct = pdbent.removeheteroatoms()
+                
+                    for chi in cids1:
+                        for chj in cids2:
+                            if chi != chj:
+                                print (pdbent.id, chi, chj)
+                                before = datetime.now()
+                                cnum = pdbent.count_chain_interactions(chi, chj, caonly=caonly)
+                                print (datetime.now()-before)
+                                if cnum != None:    # interaction found
+                                    ncases += 1
+                                    
+                                    # look up deposition date
+                                    pdbdepdate = pdbent.depositiondate()
+                                    if pdbdepdate < mindate:
+                                        mindate = pdbdepdate
                             
-                                if cnum >= nints:
-                                    maxint_entry = (pdbent.id, chi, chj)
-                                    nints = cnum
-    return maxint_entry, nints, mindate
+                                    if cnum >= nints:
+                                        maxint_entry = (pdbent.id, chi, chj)
+                                        nints = cnum
+                                        if findnoninteracting and nints > 0:
+                                            break
+                        if findnoninteracting and nints > 0:
+                            break
+        if findnoninteracting and nints > 0:
+            break        
+                                        
+    return maxint_entry, nints, mindate, ncases
     
     
-#    if len(pos) > 0:    # interaction in PDB
-#        return True, pos
-#    if len(neg) > 0:    # non-interaction in PDB
-#        return False, neg
-#    else:               # no PDB records of sufficient resolution
-#        return None, []
     
                 
         
